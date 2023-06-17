@@ -89,6 +89,10 @@
     [self.text pushText:self.info xy:NSMakePoint(w / 2 - self.info.length * 8 / 2, h / 2 - 6) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(0, 0, 0, 1)];
     [self.text bufferVertices];
     
+    self.text.warpEnabled = YES;
+    self.text.warpAmplitudes = Vec3Make(0, 16, 0);
+    self.text.warpSpeed = 2;
+    
     id<MTLCommandBuffer> commandBuffer = [view.commandQueue commandBuffer];
     id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:self.renderPassDescriptor];
     
@@ -101,7 +105,8 @@
     [encoder endEncoding];
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
-    
+
+    self.text.warpEnabled = NO;
     self.mesh.basicEncodable.texture = self.renderPassDescriptor.colorAttachments[0].texture;
     
     NSString* info = [NSString stringWithFormat:@"FPS = %i\nOBJ = %i\nESC = Quit", view.frameRate, XObject.instances];

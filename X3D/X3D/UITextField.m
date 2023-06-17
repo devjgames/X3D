@@ -7,6 +7,40 @@
 
 #import <X3D/X3D.h>
 
+@interface UIField : NSTextField
+
+@property (weak) UIManager* manager;
+
+- (id)initWithManager:(UIManager*)manager;
+
+@end
+
+@implementation UIField
+
+
+- (id)initWithManager:(UIManager *)manager {
+    self = [super initWithFrame:NSMakeRect(0, 0, 0, 0)];
+    if(self) {
+        self.manager = manager;
+    }
+    return self;
+}
+
+- (BOOL)becomeFirstResponder {
+    BOOL ok = [super becomeFirstResponder];
+    
+    if(ok) {
+        NSTextView* textField = (NSTextView*)[self currentEditor];
+        
+        if([textField respondsToSelector:@selector(setInsertionPointColor:)]) {
+            [textField setInsertionPointColor:self.manager.foregroundColor];
+        }
+    }
+    return ok;
+}
+
+@end
+
 @interface UITextField : NSView
 
 @property (readonly, weak) UIManager* manager;
@@ -28,7 +62,7 @@
         _manager = manager;
         _changed = nil;
         
-        _field = [NSTextField textFieldWithString:@""];
+        _field = [[UIField alloc] initWithManager:manager];
         _field.drawsBackground = NO;
         _field.editable = YES;
         _field.selectable = YES;
