@@ -7,7 +7,6 @@
 
 #import "Test.h"
 
-#define LM_SCALE 2
 #define RADIUS 32
 
 @interface CollisionTest ()
@@ -22,21 +21,51 @@
 @property Mat4 groundMatrix;
 @property BOOL onGround;
 @property Sound* jump;
-@property float offsetLength;
-
-- (Mesh*)addCube:(MTLView*)view position:(Vec3)position size:(float)size rotation:(Vec3)rotation lightMapper:(LightMapper*)lightMapper x:(int*)x invert:(BOOL)invert;
-
-- (void)push:(Mesh*)mesh positions:(NSMutableData*)positions indices:(NSMutableData*)indices;
+@property Sound* pain;
+@property Vec3 start;
+@property Vec3 offset;
+@property Vec4 color;
+@property float fall;
+@property int jumpAmount;
+@property NSString* path;
 
 @end
 
 @implementation CollisionTest
 
+- (id)initWithPath:(NSString *)path baseURL:(NSURL *)baseURL {
+    self = [super init];
+    if(self) {
+        NSString* name = [path.lastPathComponent stringByDeletingPathExtension];
+        NSString* cfgPath = [[path stringByDeletingLastPathComponent] stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.txt", name]];
+        NSArray<NSString*>* lines = [Parser split:[NSString stringWithContentsOfURL:[baseURL URLByAppendingPathComponent:cfgPath] encoding:NSASCIIStringEncoding error:nil]
+                                           delims:[NSCharacterSet newlineCharacterSet]
+        ];
+            
+        for(NSString* line in lines) {
+            NSString* tLine = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSArray<NSString*>* tokens = [Parser split:tLine delims:[NSCharacterSet whitespaceCharacterSet]];
+
+            if([tLine hasPrefix:@"start "]) {
+                self.start = Vec3Make([tokens[1] floatValue], [tokens[2] floatValue], [tokens[3] floatValue]);
+            } else if([tLine hasPrefix:@"fall "]) {
+                self.fall = [tokens[1] floatValue];
+            } else if([tLine hasPrefix:@"offset "]) {
+                self.offset = Vec3Make([tokens[1] floatValue], [tokens[2] floatValue], [tokens[3] floatValue]);
+            } else if([tLine hasPrefix:@"color "]) {
+                self.color = Vec4Make([tokens[1] floatValue], [tokens[2] floatValue], [tokens[3] floatValue], [tokens[4] floatValue]);
+            } else if([tLine hasPrefix:@"jump "]) {
+                self.jumpAmount = [tokens[1] intValue];
+            }
+        }
+        self.path = path;
+    }
+    return self;
+}
+
 - (void)setup:(MTLView *)view {
     self.scene = [[Scene alloc] init];
-    self.scene.camera.eye = Vec3Make(150, 150, 150);
-    
-    self.offsetLength = Vec3Length(self.scene.camera.eye - self.scene.camera.target);
+    self.scene.camera.eye = self.offset;
     
     self.text = [[BasicEncodable alloc] initWithView:view vertexCount:1];
     self.text.texture = [view.assets load:@"assets/font.png"];
@@ -47,55 +76,32 @@
     self.text.textureSampler = NEAREST_CLAMP_TO_EDGE;
     
     [self.text createDepthAndPipelineState];
-    
-    Light lights[] = {
-        { { 0, 175, 0 }, { 3, 1.5f, 1, 1 }, 250 }
-    };
-    
-    self.lights = [NSMutableData dataWithBytes:lights length:sizeof(lights)];
+
+    self.lights = [NSMutableData dataWithCapacity:MAX_LIGHTS * sizeof(Light)];
     
     view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+
+    Mesh* mesh = [view.assets load:self.path];
+    NSString* name = [self.path.lastPathComponent stringByDeletingPathExtension];
+    NSString* texture = [[self.path stringByDeletingLastPathComponent] stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", name]];
     
-    LightMapper* lightMapper = [[LightMapper alloc] initWithView:view width:2048 height:128];
-    NSMutableData* positions = [NSMutableData dataWithCapacity:100 * sizeof(Vec3)];
-    NSMutableData* indices = [NSMutableData dataWithCapacity:300 * 4];
-    Mesh* mesh;
-    int x = 0;
+    mesh.basicEncodable.texture = [view.assets load:texture];
+    mesh.basicEncodable.textureSampler = LINEAR_CLAMP_TO_EDGE;
+    mesh.basicEncodable.color = self.color;
     
-    self.triangles = [NSMutableData dataWithCapacity:100 * sizeof(Triangle)];
+    [self.scene.root addChild:mesh];
     
-    [lightMapper clear];
-    for(int i = 0; i != [KeyFrameMeshLoader normalCount]; i++) {
-        [lightMapper pushSample:[KeyFrameMeshLoader normalAt:i]];
-    }
+    self.triangles = [NSMutableData dataWithCapacity:mesh.indexCount / 3 * sizeof(Triangle)];
     
-    mesh = [self addCube:view position:Vec3Make(0, 128, 0) size:256 rotation:Vec3Make(0, 0, 0) lightMapper:lightMapper x:&x invert:YES];
-    [mesh calcTextureCoordinates:128];
-    [mesh bufferVertices];
-    [self push:mesh positions:positions indices:indices];
-    for(int i = 0; i != (int)(self.triangles.length / sizeof(Triangle)); i++) {
-        (((Triangle*)self.triangles.mutableBytes) + i)->tag = 2;
-    }
-    mesh.basicEncodable.texture = [view.assets load:@"assets/textures/dirt.png"];
-    
-    [self push:[self addCube:view position:Vec3Make(+50, 16, +50) size:32 rotation:Vec3Make(0, +45, 0) lightMapper:lightMapper x:&x invert:NO] positions:positions indices:indices];
-    [self push:[self addCube:view position:Vec3Make(-50, 16, -50) size:32 rotation:Vec3Make(0, +45, 0) lightMapper:lightMapper x:&x invert:NO] positions:positions indices:indices];
-    [self push:[self addCube:view position:Vec3Make(+50, 16, -50) size:32 rotation:Vec3Make(0, 0, 0) lightMapper:lightMapper x:&x invert:NO] positions:positions indices:indices];
-    [self push:[self addCube:view position:Vec3Make(-30, 110, +30) size:32 rotation:Vec3Make(15, 45, 15) lightMapper:lightMapper x:&x invert:NO] positions:positions indices:indices];
-    [self push:[self addCube:view position:Vec3Make(-50, 80, -10) size:32 rotation:Vec3Make(0, 0, 0) lightMapper:lightMapper x:&x invert:NO] positions:positions indices:indices];
-    
-    [lightMapper buffer];
-    [lightMapper render:[lightMapper createAccel:positions indices:indices] lights:self.lights];
-    
-    for(int i = 0; i != self.scene.root.childCount; i++) {
-        id node = [self.scene.root childAt:i];
+    for(int i = 0; i != mesh.indexCount; ) {
+        int i1 = [mesh indexAt:i++];
+        int i2 = [mesh indexAt:i++];
+        int i3 = [mesh indexAt:i++];
+        Triangle triangle = TriangleMake([mesh vertexAt:i1].position, [mesh vertexAt:i2].position, [mesh vertexAt:i3].position);
         
-        if([node isKindOfClass:[Mesh class]]) {
-            Mesh* mesh = node;
-            
-            mesh.basicEncodable.texture2 = lightMapper.texture;
-            mesh.basicEncodable.texture2Sampler = LINEAR_CLAMP_TO_EDGE;
-        }
+        triangle = TriangleTransform(mesh.model, triangle);
+        
+        [self.triangles appendBytes:&triangle length:sizeof(Triangle)];
     }
     
     KeyFrameMesh* kfMesh = [view.assets load:@"assets/md2/babyboom.md2"];
@@ -104,13 +110,12 @@
     kfMesh.rotation = Mat4Rotate(-90, Vec3Make(1, 0, 0));
     kfMesh.position -= Vec3Make(0, [kfMesh frameBoundsAt:0].min.z, 0);
     kfMesh.position -= Vec3Make(0, RADIUS, 0);
-    kfMesh.basicEncodable.lightingEnabled = YES;
-    kfMesh.basicEncodable.ambientColor = Vec4Make(0.2f, 0.2f, 0.6f, 1);
     kfMesh.basicEncodable.texture = [view.assets load:@"assets/md2/babyboom.png"];
     [kfMesh setSequenceStart:0 end:39 speed:10 looping:YES];
     
     self.player = [[Node alloc] init];
-    self.player.position = Vec3Make(0, 32, 0);
+    self.player.position = self.start;
+    self.player.rotation = Mat4Rotate(180, Vec3Make(0, 1, 0));
     [self.player addChild:kfMesh];
     
     [self.scene.root addChild:self.player];
@@ -121,6 +126,9 @@
 
     self.jump = [view.assets load:@"assets/sound/jump.wav"];
     self.jump.player.volume = 0.25f;
+    
+    self.pain = [view.assets load:@"assets/sound/pain.wav"];
+    self.pain.player.volume = 0.25f;
 }
 
 - (BOOL)nextFrame:(MTLView *)view {
@@ -162,11 +170,11 @@
     KeyFrameMesh* mesh = [self.player childAt:0];
 
     if([view isButtonDown:1]) {
-        [self.scene.camera rotate:view];
+        [self.scene.camera rotateDelta:NSMakePoint(-view.deltaX, 0)];
     }
     
-    if([view isKeyDown:49] && self.onGround) {
-        self.velocity = Vec3Make(0, 800, 0);
+    if([view isKeyDown:49] && self.onGround && self.jumpAmount > 0) {
+        self.velocity = Vec3Make(0, self.jumpAmount, 0);
         
         [self.jump.player play];
     }
@@ -268,26 +276,16 @@
     
     Vec3 p = self.player.position;
     
-    f = Vec3Normalize(self.scene.camera.eye - self.scene.camera.target);
-    self.scene.camera.target = p;
-    
-    float time = self.offsetLength + (RADIUS - 1);
-    float length = self.offsetLength;
-    BOOL hit = NO;
-    
-    for(int i = 0; i != (int)(self.triangles.length / sizeof(Triangle)); i++) {
-        Triangle triangle = ((Triangle*)self.triangles.mutableBytes)[i];
+    if(p.y < self.fall) {
+        self.player.position = p = self.start;
         
-        if(triangle.tag == 2) {
-            if(TriangleRayIntersects(triangle, self.scene.camera.target, f, 1, &time)) {
-                hit = YES;
-            }
-        }
+        [self.pain.player play];
     }
-    if(hit) {
-        length = MIN(length, time) - (RADIUS - 1);
-    }
-    self.scene.camera.eye = self.scene.camera.target + f * length;
+    
+    f = self.scene.camera.eye - self.scene.camera.target;
+    
+    self.scene.camera.target = p;
+    self.scene.camera.eye = self.scene.camera.target + f;
     
     [self.scene.root updateWithScene:self.scene view:view];
     
@@ -301,43 +299,17 @@
     self.triangles = nil;
     self.lights = nil;
     self.jump = nil;
+    self.pain = nil;
 }
 
-- (Mesh*)addCube:(MTLView *)view position:(Vec3)position size:(float)size rotation:(Vec3)rotation lightMapper:(LightMapper *)lightMapper x:(int *)x invert:(BOOL)invert {
+- (NSString*)description {
+    NSString* name = [self.path.lastPathComponent stringByDeletingPathExtension];
+    unichar c = [name characterAtIndex:0];
     
-    Mesh* mesh = [[Mesh alloc] initWithView:view];
+    c = toupper(c);
+    name = [NSString stringWithFormat:@"%c%@", c, [name substringFromIndex:1]];
     
-    [mesh pushBox:Vec3Make(1, 1, 1) * size position:position rotation:rotation invert:invert];
-    [mesh calcTextureCoordinates:64];
-    
-    int w, h;
-    
-    for(int i = 0; i != mesh.faceCount; i++) {
-        [lightMapper pushQuad:i mesh:mesh x:*x y:0 width:&w height:&h ambient:Vec4Make(0.2f, 0.2f, 0.6f, 1) diffuse:Vec4Make(1, 1, 1, 1) scale:LM_SCALE];
-        *x += w;
-    }
-    [mesh bufferVertices];
-    
-    mesh.basicEncodable.texture = [view.assets load:@"assets/textures/stone.png"];
-    
-    [self.scene.root addChild:mesh];
-    
-    return mesh;
-}
-
-- (void)push:(Mesh *)mesh positions:(NSMutableData *)positions indices:(NSMutableData *)indices {
-    [mesh pushAccelPositions:positions indices:indices];
-    
-    for(int i = 0; i != mesh.indexCount; ) {
-        int i1 = [mesh indexAt:i++];
-        int i2 = [mesh indexAt:i++];
-        int i3 = [mesh indexAt:i++];
-        Triangle triangle = TriangleMake([mesh vertexAt:i1].position, [mesh vertexAt:i2].position, [mesh vertexAt:i3].position);
-        
-        triangle = TriangleTransform(mesh.model, triangle);
-        
-        [self.triangles appendBytes:&triangle length:sizeof(Triangle)];
-    }
+    return name;
 }
 
 @end

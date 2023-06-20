@@ -90,24 +90,6 @@
     [self.faces addObject:[NSArray arrayWithArray:indices]];
 }
 
-- (void)pushAccelPositions:(NSMutableData *)positions indices:(NSMutableData *)indices {
-    int count = (int)(positions.length / sizeof(Vec3));
-    
-    for(int i = 0; i != self.vertexCount; i++) {
-        BasicVertex v = [self vertexAt:i];
-        
-        v.position = Vec3Transform(self.model, v.position);
-        
-        [positions appendBytes:&(v.position) length:sizeof(Vec3)];
-    }
-
-    for(int i = 0; i != self.indexCount; i++) {
-        int j = [self indexAt:i] + count;
-        
-        [indices appendBytes:&j length:4];
-    }
-}
-
 - (void)pushBox:(Vec3)size position:(Vec3)position rotation:(Vec3)rotation invert:(BOOL)invert {
     Vec3 s = size / 2;
     float d = (invert) ? -1 : 1;
@@ -195,3 +177,59 @@
 }
 
 @end
+
+@implementation MeshLoader
+
+- (id)load:(NSURL *)url assets:(AssetManager *)assets {
+    NSArray<NSString*>* lines = [Parser split:[NSString stringWithContentsOfURL:url encoding:NSASCIIStringEncoding error:nil] delims:[NSCharacterSet newlineCharacterSet]];
+    Mesh* mesh = [[Mesh alloc] initWithView:assets.view];
+    NSMutableData* vList = [NSMutableData dataWithCapacity:100 * sizeof(Vec3)];
+    NSMutableData* tList = [NSMutableData dataWithCapacity:100 * sizeof(Vec2)];
+    NSMutableData* nList = [NSMutableData dataWithCapacity:100 * sizeof(Vec3)];
+    
+    for(NSString* line in lines) {
+        NSString* tLine = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        NSArray<NSString*>* tokens = [Parser split:tLine delims:[NSCharacterSet whitespaceCharacterSet]];
+        
+        if([tLine hasPrefix:@"v "]) {
+            Vec3 v = Vec3Make([tokens[1] floatValue], [tokens[2] floatValue], [tokens[3] floatValue]);
+            
+            [vList appendBytes:&v length:sizeof(Vec3)];
+        } else if([tLine hasPrefix:@"vt "]) {
+            Vec2 v = Vec2Make([tokens[1] floatValue], 1 - [tokens[2] floatValue]);
+            
+            [tList appendBytes:&v length:sizeof(Vec2)];
+        } else if([tLine hasPrefix:@"vn "]) {
+            Vec3 v = Vec3Make([tokens[1] floatValue], [tokens[2] floatValue], [tokens[3] floatValue]);
+            
+            [nList appendBytes:&v length:sizeof(Vec3)];
+        } else if([tLine hasPrefix:@"f "]) {
+            int b = mesh.vertexCount;
+            NSMutableArray<NSNumber*>* indices = [NSMutableArray arrayWithCapacity:tokens.count - 1];
+            
+            for(int i = 1; i != (int)tokens.count; i++) {
+                NSArray<NSString*>* iTokens = [Parser split:tokens[i] delims:[NSCharacterSet characterSetWithCharactersInString:@"/"]];
+                int vi = [iTokens[0] intValue] - 1;
+                int ti = [iTokens[1] intValue] - 1;
+                int ni = [iTokens[2] intValue] - 1;
+                BasicVertex v;
+                
+                v.position = ((Vec3*)vList.mutableBytes)[vi];
+                v.textureCoordinate = ((Vec2*)tList.mutableBytes)[ti];
+                v.normal = ((Vec3*)nList.mutableBytes)[ni];
+                v.color = Vec4Make(1, 1, 1, 1);
+                v.textureCoordinate2 = Vec2Make(0, 0);
+                
+                [mesh pushVertex:v];
+                [indices addObject:@(i - 1 + b)];
+            }
+            [mesh pushFace:indices swapWinding:YES];
+        }
+    }
+    [mesh bufferVertices];
+    
+    return mesh;
+}
+
+@end
+

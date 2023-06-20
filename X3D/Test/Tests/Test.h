@@ -17,7 +17,13 @@
 
 #import "UIConfig.h"
 #import "KeyFrameMeshTest.h"
-#import "LightMapperTest.h"
 #import "CollisionTest.h"
 #import "FieldTest.h"
+
+@interface TestFramework : NSObject
+
+- (id)initWithWindow:(NSWindow*)window view:(MTLView*)view tests:(NSArray<Test*>*)tests;
+- (void)tearDown;
+
+@end
 

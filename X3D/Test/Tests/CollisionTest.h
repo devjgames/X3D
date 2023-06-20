@@ -7,5 +7,7 @@
 
 @interface CollisionTest : Test
 
+- (id)initWithPath:(NSString*)path baseURL:(NSURL*)baseURL;
+
 @end
 

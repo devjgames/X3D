@@ -1,0 +1,5 @@
+start 0 64 0
+fall -64
+offset -100 100 -100
+color 1.5 1.5 1.5 1
+jump 1200

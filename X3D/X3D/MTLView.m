@@ -103,6 +103,7 @@ void Log(NSString* format, ...) {
         [self registerAssetLoader:[[TextureLoader alloc] initWithView:self.view] forExtension:@"jpg"];
         [self registerAssetLoader:[[KeyFrameMeshLoader alloc] init] forExtension:@"md2"];
         [self registerAssetLoader:[[SoundLoader alloc] init] forExtension:@"wav"];
+        [self registerAssetLoader:[[MeshLoader alloc] init] forExtension:@"obj"];
     }
     return self;
 }
@@ -383,7 +384,7 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
     }
 }
 
-- (void)destroy {
+- (void)tearDown {
     _assets = nil;
     _ui = nil;
 }

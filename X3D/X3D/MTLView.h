@@ -64,7 +64,7 @@ void Log(NSString* format, ...);
 - (void)resetTimer;
 - (void)tick;
 - (void)createTextures;
-- (void)destroy;
+- (void)tearDown;
 
 @end
 

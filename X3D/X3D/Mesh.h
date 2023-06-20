@@ -18,10 +18,13 @@
 - (int)face:(int)i vertexAt:(int)j;
 - (void)pushVertex:(BasicVertex)vertex;
 - (void)pushFace:(NSArray<NSNumber*>*)indices swapWinding:(BOOL)swap;
-- (void)pushAccelPositions:(NSMutableData*)positions indices:(NSMutableData*)indices;
 - (void)pushBox:(Vec3)size position:(Vec3)position rotation:(Vec3)rotation invert:(BOOL)invert;
 - (void)calcTextureCoordinates:(float)units;
 - (void)bufferVertices;
+
+@end
+
+@interface MeshLoader : AssetLoader
 
 @end
 
