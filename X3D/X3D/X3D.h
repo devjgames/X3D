@@ -34,5 +34,6 @@ FOUNDATION_EXPORT const unsigned char X3DVersionString[];
 #import <X3D/KeyFrameMesh.h>
 #import <X3D/Mesh.h>
 #import <X3D/Sound.h>
+#import <X3D/Test.h>
 
 

@@ -182,7 +182,8 @@
 
 - (id)load:(NSURL *)url assets:(AssetManager *)assets {
     NSArray<NSString*>* lines = [Parser split:[NSString stringWithContentsOfURL:url encoding:NSASCIIStringEncoding error:nil] delims:[NSCharacterSet newlineCharacterSet]];
-    Mesh* mesh = [[Mesh alloc] initWithView:assets.view];
+    Node* node = [[Node alloc] init];
+    NSMutableDictionary<NSString*, id<MTLTexture>>* textures = [NSMutableDictionary dictionaryWithCapacity:16];
     NSMutableData* vList = [NSMutableData dataWithCapacity:100 * sizeof(Vec3)];
     NSMutableData* tList = [NSMutableData dataWithCapacity:100 * sizeof(Vec2)];
     NSMutableData* nList = [NSMutableData dataWithCapacity:100 * sizeof(Vec3)];
@@ -191,7 +192,67 @@
         NSString* tLine = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
         NSArray<NSString*>* tokens = [Parser split:tLine delims:[NSCharacterSet whitespaceCharacterSet]];
         
-        if([tLine hasPrefix:@"v "]) {
+        if([tLine hasPrefix:@"mtllib "]) {
+            NSString* fName = [url.lastPathComponent stringByDeletingPathExtension];
+            NSURL* mURL = [[url URLByDeletingLastPathComponent] URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.mtl", fName]];
+            NSArray<NSString*>* mLines = [Parser split:[NSString stringWithContentsOfURL:mURL encoding:NSASCIIStringEncoding error:nil] delims:[NSCharacterSet newlineCharacterSet]];
+            NSString* mName = nil;
+            
+            for(NSString* mLine in mLines) {
+                NSString* mtLine = [mLine stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                
+                if([mtLine hasPrefix:@"newmtl "]) {
+                    mName = [[mtLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                } else if([mtLine hasPrefix:@"map_Kd "]) {
+                    NSString* texName = [[mtLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                    NSString* texPath = [[[url URLByDeletingLastPathComponent] URLByAppendingPathComponent:texName] path];
+                    
+                    texPath = [texPath stringByReplacingOccurrencesOfString:assets.baseURL.path withString:@""];
+                    texPath = [texPath substringFromIndex:1];
+                
+                    [textures setObject:[assets load:texPath] forKey:mName];
+                }
+            }
+        } else if([tLine hasPrefix:@"o "]) {
+            NSString* name = [[tLine substringFromIndex:1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            Node* child = [[Node alloc] init];
+            NSString* clsName = name;
+            int i = -1;
+            
+            for(int j = 0; j != (int)clsName.length; j++) {
+                unichar c = [name characterAtIndex:j];
+                
+                if(c == '.') {
+                    i = j;
+                    break;
+                }
+            }
+            if(i != -1) {
+                clsName = [clsName substringToIndex:i];
+            }
+            
+            Class cls = NSClassFromString(clsName);
+            
+            child.name = name;
+            if(cls) {
+                Log(@"Creating %@ ...", cls);
+                child.userData = [[cls alloc] init];
+            }
+            [node addChild:child];
+        } else if([tLine hasPrefix:@"usemtl "]) {
+            NSString* key = [[tLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            Mesh* mesh = [[Mesh alloc] initWithView:assets.view];
+            
+            mesh.basicEncodable.texture = [textures objectForKey:key];
+            
+            if(node.childCount == 0) {
+                [node addChild:[[Node alloc] init]];
+            }
+            
+            Node* child = node.lastChild;
+            
+            [child addChild:mesh];
+        } else if([tLine hasPrefix:@"v "]) {
             Vec3 v = Vec3Make([tokens[1] floatValue], [tokens[2] floatValue], [tokens[3] floatValue]);
             
             [vList appendBytes:&v length:sizeof(Vec3)];
@@ -204,6 +265,18 @@
             
             [nList appendBytes:&v length:sizeof(Vec3)];
         } else if([tLine hasPrefix:@"f "]) {
+            if(node.childCount == 0) {
+                [node addChild:[[Node alloc] init]];
+            }
+            
+            Node* child = node.lastChild;
+            
+            if(child.childCount == 0) {
+                [child addChild:[[Mesh alloc] initWithView:assets.view]];
+            }
+            
+            Mesh* mesh = child.lastChild;
+            
             int b = mesh.vertexCount;
             NSMutableArray<NSNumber*>* indices = [NSMutableArray arrayWithCapacity:tokens.count - 1];
             
@@ -226,10 +299,42 @@
             [mesh pushFace:indices swapWinding:YES];
         }
     }
-    [mesh bufferVertices];
-    
-    return mesh;
+    for(int i = 0; i != node.childCount; i++) {
+        Node* child = [node childAt:i];
+        BoundingBox bounds = BoundingBoxEmpty();
+        
+        for(int j = 0; j != child.childCount; j++) {
+            Mesh* mesh = [child childAt:j];
+            
+            for(int k = 0; k != mesh.vertexCount; k++) {
+                BasicVertex v = [mesh vertexAt:k];
+                
+                bounds = BoundingBoxAddPoint(bounds, v.position);
+            }
+        }
+        
+        Vec3 center = BoundingBoxCalcCenter(bounds);
+        
+        for(int j = 0; j != child.childCount; j++) {
+            Mesh* mesh = [child childAt:j];
+            
+            for(int k = 0; k != mesh.vertexCount; k++) {
+                BasicVertex v = [mesh vertexAt:k];
+                
+                v.position = v.position - center;
+                
+                [mesh setVertex:v at:k];
+            }
+            [mesh bufferVertices];
+        }
+        
+        child.position = center;
+    }
+    return node;
 }
 
 @end
+
+
+
 

@@ -24,7 +24,8 @@
         _children = [NSMutableArray arrayWithCapacity:8];
         __parent = nil;
         
-        _identifier = 0;
+        self.name = @"";
+        
         _visible = YES;
         
         self.encodable = nil;
@@ -35,6 +36,8 @@
         _rotation = Mat4Identity();
         _model = Mat4Identity();
         _zOrder = 0;
+        
+        self.userData = nil;
     }
     return self;
 }
@@ -235,3 +238,4 @@
 }
 
 @end
+

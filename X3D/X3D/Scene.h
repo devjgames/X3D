@@ -9,7 +9,7 @@
 
 @interface Node : XObject
 
-@property int identifier;
+@property NSString* name;
 @property BOOL visible;
 @property id encodable;
 @property (readonly) Vec3 absolutePosition;
@@ -18,6 +18,7 @@
 @property Mat4 rotation;
 @property (readonly) Mat4 model;
 @property int zOrder;
+@property id userData;
 
 - (BasicEncodable*)basicEncodable;
 - (id)root;

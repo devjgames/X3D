@@ -150,8 +150,8 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
 
 @implementation MTLView
 
-- (id)initWithWindow:(NSWindow *)window {
-    self = [super initWithFrame:window.contentView.frame];
+- (id)initWithView:(NSView *)view {
+    self = [super initWithFrame:view.frame];
     if(self) {
         self.wantsLayer = YES;
         self.layer = [CAMetalLayer layer];
@@ -192,9 +192,9 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
             _KEY_STATE[i] = NO;
         }
         
-        _ui = [[UIManager alloc] initWithWindow:window];
+        _ui = [[UIManager alloc] initWithWindow:view.window];
         
-        [window.contentView addSubview:self];
+        [view addSubview:self];
         
         [self becomeFirstResponder];
         

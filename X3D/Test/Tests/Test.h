@@ -7,23 +7,10 @@
 
 #import <X3D/X3D.h>
 
-@interface Test : XObject
-
-- (void)setup:(MTLView*)view;
-- (BOOL)nextFrame:(MTLView*)view;
-- (void)tearDown;
-
-@end
-
 #import "UIConfig.h"
 #import "KeyFrameMeshTest.h"
-#import "CollisionTest.h"
+#import "Player.h"
 #import "FieldTest.h"
 
-@interface TestFramework : NSObject
 
-- (id)initWithWindow:(NSWindow*)window view:(MTLView*)view tests:(NSArray<Test*>*)tests;
-- (void)tearDown;
-
-@end
 

@@ -53,7 +53,7 @@ void Log(NSString* format, ...);
 @property (readonly) int deltaY;
 @property (readonly) UIManager* ui;
 
-- (id)initWithWindow:(NSWindow*)window;
+- (id)initWithView:(NSView*)view;
 - (CAMetalLayer*)metalLayer;
 - (id<MTLDevice>)device;
 - (int)width;

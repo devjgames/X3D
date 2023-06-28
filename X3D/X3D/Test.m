@@ -1,11 +1,11 @@
 //
 //  Test.m
-//  X3DTest
+//  X3D
 //
-//  Created by Douglas McNamara on 5/16/23.
+//  Created by Douglas McNamara on 6/28/23.
 //
 
-#import "Test.h"
+#import <X3D/X3D.h>
 
 @implementation Test
 

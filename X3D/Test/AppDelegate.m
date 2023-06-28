@@ -20,13 +20,12 @@
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     // Insert code here to initialize your application
     
-    MTLView* view = [[MTLView alloc] initWithWindow:self.window];
+    MTLView* view = [[MTLView alloc] initWithView:self.window.contentView];
     
     NSArray<Test*>* tests = @[
         [[UIConfig alloc] init],
         [[KeyFrameMeshTest alloc] init],
-        [[CollisionTest alloc] initWithPath:@"assets/meshes/scene1.obj" baseURL:view.assets.baseURL],
-        [[CollisionTest alloc] initWithPath:@"assets/meshes/scene2.obj" baseURL:view.assets.baseURL],
+        [[Player alloc] initWithPath:@"assets/meshes/scene1.obj" baseURL:view.assets.baseURL],
         [[FieldTest alloc] init]
     ];
     
