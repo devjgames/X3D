@@ -30,6 +30,32 @@
     return self;
 }
 
+- (int)triangleCount {
+    return self.indexCount / 3;
+}
+
+- (Triangle)triangleAt:(int)i {
+    static Triangle triangle;
+    
+    i *= 3;
+    
+    int i1 = [self indexAt:i++];
+    int i2 = [self indexAt:i++];
+    int i3 = [self indexAt:i++];
+    Vec3 p1 = [self vertexAt:i1].position;
+    Vec3 p2 = [self vertexAt:i2].position;
+    Vec3 p3 = [self vertexAt:i3].position;
+    
+    p1 = Vec3Transform(self.model, p1);
+    p2 = Vec3Transform(self.model, p2);
+    p3 = Vec3Transform(self.model, p3);
+    
+    triangle = TriangleMake(p1, p2, p3);
+    triangle.tag = self.triangleTag;
+    
+    return triangle;
+}
+
 - (int)vertexCount {
     return (int)(self.vertices.length / sizeof(BasicVertex));
 }
@@ -180,6 +206,14 @@
 
 @implementation MeshLoader
 
+- (id)init {
+    self = [super init];
+    if(self) {
+        self.center = YES;
+    }
+    return self;
+}
+
 - (id)load:(NSURL *)url assets:(AssetManager *)assets {
     NSArray<NSString*>* lines = [Parser split:[NSString stringWithContentsOfURL:url encoding:NSASCIIStringEncoding error:nil] delims:[NSCharacterSet newlineCharacterSet]];
     Node* node = [[Node alloc] init];
@@ -216,28 +250,9 @@
         } else if([tLine hasPrefix:@"o "]) {
             NSString* name = [[tLine substringFromIndex:1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
             Node* child = [[Node alloc] init];
-            NSString* clsName = name;
-            int i = -1;
-            
-            for(int j = 0; j != (int)clsName.length; j++) {
-                unichar c = [name characterAtIndex:j];
-                
-                if(c == '.') {
-                    i = j;
-                    break;
-                }
-            }
-            if(i != -1) {
-                clsName = [clsName substringToIndex:i];
-            }
-            
-            Class cls = NSClassFromString(clsName);
             
             child.name = name;
-            if(cls) {
-                Log(@"Creating %@ ...", cls);
-                child.userData = [[cls alloc] init];
-            }
+
             [node addChild:child];
         } else if([tLine hasPrefix:@"usemtl "]) {
             NSString* key = [[tLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
@@ -277,6 +292,10 @@
             
             Mesh* mesh = child.lastChild;
             
+            if(mesh.basicEncodable.texture) {
+                mesh.name = [mesh.basicEncodable.texture.label.lastPathComponent stringByDeletingPathExtension];
+            }
+            
             int b = mesh.vertexCount;
             NSMutableArray<NSNumber*>* indices = [NSMutableArray arrayWithCapacity:tokens.count - 1];
             
@@ -303,13 +322,15 @@
         Node* child = [node childAt:i];
         BoundingBox bounds = BoundingBoxEmpty();
         
-        for(int j = 0; j != child.childCount; j++) {
-            Mesh* mesh = [child childAt:j];
-            
-            for(int k = 0; k != mesh.vertexCount; k++) {
-                BasicVertex v = [mesh vertexAt:k];
+        if(self.center) {
+            for(int j = 0; j != child.childCount; j++) {
+                Mesh* mesh = [child childAt:j];
                 
-                bounds = BoundingBoxAddPoint(bounds, v.position);
+                for(int k = 0; k != mesh.vertexCount; k++) {
+                    BasicVertex v = [mesh vertexAt:k];
+                    
+                    bounds = BoundingBoxAddPoint(bounds, v.position);
+                }
             }
         }
         
@@ -318,17 +339,21 @@
         for(int j = 0; j != child.childCount; j++) {
             Mesh* mesh = [child childAt:j];
             
-            for(int k = 0; k != mesh.vertexCount; k++) {
-                BasicVertex v = [mesh vertexAt:k];
-                
-                v.position = v.position - center;
-                
-                [mesh setVertex:v at:k];
+            if(self.center) {
+                for(int k = 0; k != mesh.vertexCount; k++) {
+                    BasicVertex v = [mesh vertexAt:k];
+                    
+                    v.position = v.position - center;
+                    
+                    [mesh setVertex:v at:k];
+                }
             }
             [mesh bufferVertices];
         }
         
-        child.position = center;
+        if(self.center) {
+            child.position = center;
+        }
     }
     return node;
 }

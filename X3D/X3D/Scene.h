@@ -18,9 +18,16 @@
 @property Mat4 rotation;
 @property (readonly) Mat4 model;
 @property int zOrder;
-@property id userData;
+@property BOOL isLight;
+@property Vec4 lightColor;
+@property float lightRadius;
+@property BOOL collidable;
+@property BOOL dynamic;
+@property int triangleTag;
 
 - (BasicEncodable*)basicEncodable;
+- (int)triangleCount;
+- (Triangle)triangleAt:(int)i;
 - (id)root;
 - (id)parent;
 - (id)lastChild;
@@ -29,9 +36,21 @@
 - (void)detach;
 - (void)detachChildren;
 - (void)addChild:(Node*)child;
+- (void)setup:(Scene*)scene view:(MTLView*)view;
+- (void)onSetup:(Scene*)scene view:(MTLView*)view;
+- (void)preUpdateWithScene:(Scene*)scene view:(MTLView*)view;
+- (void)onPreUpdateWithScene:(Scene*)scene view:(MTLView*)view;
 - (void)updateWithScene:(Scene*)scene view:(MTLView*)view;
 - (void)onUpdateWithScene:(Scene*)scene view:(MTLView*)view;
+- (void)handleUI:(Scene*)scene view:(MTLView*)view reset:(BOOL)reset;
+- (NSString*)serialize:(Scene*)scene view:(MTLView*)view;
+- (void)deserialize:(Scene*)scene view:(MTLView*)view tokens:(NSArray<NSString*>*)tokens;
 - (void)calcTransform;
+- (Node*)transform;
+
+@end
+
+@interface EditorNode : Node
 
 @end
 
@@ -56,8 +75,14 @@
 
 @property (readonly) Camera* camera;
 @property (readonly) Node* root;
+@property (readonly) BOOL inDesign;
+@property (readonly) NSMutableData* lights;
 
-- (void)encodeWithEncoder:(id<MTLRenderCommandEncoder>)encoder lights:(NSMutableData*)lights;
+- (id)initInDesign:(BOOL)inDesign;
+- (void)encodeWithEncoder:(id<MTLRenderCommandEncoder>)encoder;
+- (void)bufferLights;
+- (void)serialize:(NSURL*)url view:(MTLView*)view;
++ (Scene*)deserialize:(NSURL*)url view:(MTLView*)view inDesign:(BOOL)inDesign;
 
 @end
 

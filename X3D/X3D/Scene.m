@@ -24,7 +24,7 @@
         _children = [NSMutableArray arrayWithCapacity:8];
         __parent = nil;
         
-        self.name = @"";
+        self.name = NSStringFromClass(self.class);
         
         _visible = YES;
         
@@ -37,7 +37,13 @@
         _model = Mat4Identity();
         _zOrder = 0;
         
-        self.userData = nil;
+        self.isLight = NO;
+        self.lightColor = Vec4Make(1, 1, 1, 1);
+        self.lightRadius = 300;
+        
+        self.collidable = NO;
+        self.dynamic = NO;
+        self.triangleTag = 1;
     }
     return self;
 }
@@ -53,6 +59,16 @@
         }
     }
     return nil;
+}
+
+- (int)triangleCount {
+    return 0;
+}
+
+- (Triangle)triangleAt:(int)i {
+    static Triangle triangle;
+    
+    return triangle;
 }
 
 - (id)root {
@@ -101,6 +117,28 @@
     [self.children addObject:child];
 }
 
+- (void)setup:(Scene *)scene view:(MTLView *)view {
+    [self onSetup:scene view:view];
+
+    for(int i = 0; i != self.childCount; i++) {
+        [[self childAt:i] setup:scene view:view];
+    }
+}
+
+- (void)onSetup:(Scene *)scene view:(MTLView *)view {
+}
+
+- (void)preUpdateWithScene:(Scene *)scene view:(MTLView *)view {
+    [self onPreUpdateWithScene:scene view:view];
+    
+    for(int i = 0; i != self.childCount; i++) {
+        [[self childAt:i] preUpdateWithScene:scene view:view];
+    }
+}
+
+- (void)onPreUpdateWithScene:(Scene *)scene view:(MTLView *)view {
+}
+
 - (void)updateWithScene:(Scene*)scene view:(MTLView*)view {
     [self onUpdateWithScene:scene view:view];
     
@@ -110,7 +148,16 @@
 }
 
 - (void)onUpdateWithScene:(Scene*)scene view:(MTLView*)view {
-    
+}
+
+- (void)handleUI:(Scene *)scene view:(MTLView *)view reset:(BOOL)reset {
+}
+
+- (NSString*)serialize:(Scene *)scene view:(MTLView *)view {
+    return @"";
+}
+
+- (void)deserialize:(Scene *)scene view:(MTLView *)view tokens:(NSArray<NSString *> *)tokens {
 }
 
 - (void)calcTransform {
@@ -128,6 +175,18 @@
         [[self childAt:i] calcTransform];
     }
 }
+
+- (Node*)transform {
+    return self;
+}
+
+- (NSString*)description {
+    return self.name;
+}
+
+@end
+
+@implementation EditorNode
 
 @end
 
@@ -174,23 +233,33 @@
 
 @property (readonly) NSMutableArray<Node*>* nodes;
 
+- (void)addLightNodes:(Node*)node;
 - (void)addNodes:(Node*)node;
 
 @end
 
 @implementation Scene
 
-- (id)init {
+- (id)initInDesign:(BOOL)inDesign {
     self = [super init];
     if(self) {
         _nodes = [NSMutableArray arrayWithCapacity:32];
         _camera = [[Camera alloc] init];
         _root = [[Node alloc] init];
+        _inDesign = inDesign;
+        
+        _lights = [NSMutableData dataWithCapacity:sizeof(Light) * MAX_LIGHTS];
     }
     return self;
 }
 
-- (void)encodeWithEncoder:(id<MTLRenderCommandEncoder>)encoder lights:(NSMutableData *)lights {
+- (void)bufferLights {
+    self.lights.length = 0;
+    
+    [self addLightNodes:self.root];
+}
+
+- (void)encodeWithEncoder:(id<MTLRenderCommandEncoder>)encoder {
     
     [self addNodes:self.root];
     
@@ -221,7 +290,7 @@
     for(Node* node in self.nodes) {
         id<Encodable> encodable = node.encodable;
         
-        [encodable encodeWithEncoder:encoder projection:self.camera.projection view:self.camera.view model:node.model lights:lights];
+        [encodable encodeWithEncoder:encoder projection:self.camera.projection view:self.camera.view model:node.model lights:self.lights];
     }
     [self.nodes removeAllObjects];
 }
@@ -235,6 +304,57 @@
             [self addNodes:[node childAt:i]];
         }
     }
+}
+
+- (void)addLightNodes:(Node *)node {
+    if(node.visible) {
+        if(node.isLight) {
+            Light light;
+            
+            light.position = node.absolutePosition;
+            light.radius = node.lightRadius;
+            light.color = node.lightColor;
+            
+            [self.lights appendBytes:&light length:sizeof(Light)];
+        }
+        for(int i = 0; i != node.childCount; i++) {
+            [self addLightNodes:[node childAt:i]];
+        }
+    }
+}
+
+- (void)serialize:(NSURL *)url view:(MTLView *)view {
+    NSMutableString* s = [NSMutableString stringWithCapacity:1000];
+    
+    for(int i = 0; i != self.root.childCount; i++) {
+        Node* node = [self.root childAt:i];
+        
+        [s appendFormat:@"node %@ %@\n", NSStringFromClass(node.class), [node serialize:self view:view]];
+    }
+    [s writeToURL:url atomically:YES encoding:NSASCIIStringEncoding error:nil];
+}
+
++ (Scene*)deserialize:(NSURL *)url view:(MTLView *)view inDesign:(BOOL)inDesign {
+    Scene* scene = [[Scene alloc] initInDesign:inDesign];
+    NSString* text = [NSString stringWithContentsOfURL:url encoding:NSASCIIStringEncoding error:nil];
+    NSArray<NSString*>* lines = [Parser split:text delims:[NSCharacterSet newlineCharacterSet]];
+    
+    for(NSString* line in lines) {
+        NSString* tLine = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        NSArray<NSString*>* tokens = [Parser split:tLine delims:[NSCharacterSet whitespaceCharacterSet]];
+        
+        if([tLine hasPrefix:@"node "]) {
+            Node* node = [[NSClassFromString(tokens[1]) alloc] init];
+            
+            [node deserialize:scene view:view tokens:tokens];
+            [scene.root addChild:node];
+        }
+    }
+    [scene.camera calcTransforms:view.aspectRatio];
+    [scene.root calcTransform];
+    [scene.root setup:scene view:view];
+    
+    return scene;
 }
 
 @end

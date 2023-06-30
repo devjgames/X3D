@@ -19,3 +19,7 @@
 - (void)tearDown;
 
 @end
+
+@interface Editor : Test
+
+@end

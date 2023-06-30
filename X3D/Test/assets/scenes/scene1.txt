@@ -1,0 +1,2 @@
+node PlayerNode 0 32 0 100 100 100 100 25
+node SceneNode assets/meshes/scene1.obj

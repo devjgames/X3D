@@ -12,7 +12,6 @@
 @property Scene* scene;
 @property KeyFrameMesh* mesh;
 @property BasicEncodable* text;
-@property NSMutableData* lights;
 @property NSArray<NSArray<id>*>* sequences;
 @property NSMutableArray<NSString*>* sequenceNames;
 @property int selSequence;
@@ -27,7 +26,7 @@
 @implementation KeyFrameMeshTest
 
 - (void)setup:(MTLView *)view {
-    self.scene = [[Scene alloc] init];
+    self.scene = [[Scene alloc] initInDesign:YES];
     self.scene.camera.eye = Vec3Make(50, 50, 50);
     
     self.mesh = nil;
@@ -41,15 +40,22 @@
     self.text.textureSampler = NEAREST_CLAMP_TO_EDGE;
     
     [self.text createDepthAndPipelineState];
+
+    Node* light;
     
-    self.lights = [NSMutableData dataWithCapacity:MAX_LIGHTS * sizeof(Light)];
+    light = [[Node alloc] init];
+    light.isLight = YES;
+    light.position = Vec3Make(50, 50, 50);
+    light.lightColor = Vec4Make(4, 2, 0, 1);
+    light.lightRadius = 150;
+    [self.scene.root addChild:light];
     
-    Light lights[] = {
-        { { +50, 50, +50 }, { 4, 2, 0, 1 }, 150 },
-        { { -50, 50, -50 }, { 0, 2, 4, 1 }, 150 }
-    };
-    
-    [self.lights appendBytes:&lights length:sizeof(lights)];
+    light = [[Node alloc] init];
+    light.isLight = YES;
+    light.position = Vec3Make(-50, 50, -50);
+    light.lightColor = Vec4Make(0, 2, 4, 1);
+    light.lightRadius = 150;
+    [self.scene.root addChild:light];
     
     view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
     
@@ -88,12 +94,13 @@
         [self.scene.root calcTransform];
         
         [encoder setViewport:(MTLViewport){ 0, 0, view.width, view.height, 0, 1 }];
-        [self.scene encodeWithEncoder:encoder lights:self.lights];
+        [self.scene bufferLights];
+        [self.scene encodeWithEncoder:encoder];
         [self.text encodeWithEncoder:encoder
                           projection:Mat4Ortho(0, view.width, view.height, 0, -1, 1)
                                 view:Mat4Identity()
                                model:Mat4Identity()
-                              lights:self.lights];
+                              lights:nil];
         [encoder endEncoding];
         [commandBuffer presentDrawable:drawable];
         [commandBuffer commit];
@@ -199,7 +206,6 @@
     self.scene = nil;
     self.mesh = nil;
     self.text = nil;
-    self.lights = nil;
     self.sequences = nil;
     self.sequenceNames = nil;
     self.meshNames = nil;

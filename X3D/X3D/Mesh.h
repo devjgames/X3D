@@ -26,5 +26,7 @@
 
 @interface MeshLoader : AssetLoader
 
+@property BOOL center;
+
 @end
 

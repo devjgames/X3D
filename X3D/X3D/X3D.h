@@ -12,6 +12,9 @@
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
 #import <AVFoundation/AVFoundation.h>
+#import <objc/objc.h>
+#import <objc/runtime.h>
+#import <objc/objc-runtime.h>
 
 //! Project version number for X3D.
 FOUNDATION_EXPORT double X3DVersionNumber;

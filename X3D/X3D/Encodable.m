@@ -45,6 +45,7 @@ BasicVertex Vertex(float x, float y, float z, float s, float t, float u, float v
 @property id<MTLRenderPipelineState> pipelineState;
 @property id<MTLBuffer> vertexBuffer;
 @property int count;
+@property NSMutableData* noLights;
 
 @end
 
@@ -76,6 +77,7 @@ BasicVertex Vertex(float x, float y, float z, float s, float t, float u, float v
         self.warpFrequency = 0.05f;
         self.warpSpeed = 1;
         self.warpEnabled = NO;
+        self.noLights = [NSMutableData dataWithCapacity:sizeof(Light) * MAX_LIGHTS];
         
         [self createDepthAndPipelineState];
     }
@@ -189,6 +191,9 @@ BasicVertex Vertex(float x, float y, float z, float s, float t, float u, float v
     count = (int)(self.data.length / sizeof(BasicVertex));
     
     if(count) {
+        if(lights == nil) {
+            lights = self.noLights;
+        }
         vertexUniforms.projection = projection;
         vertexUniforms.view = view;
         vertexUniforms.model = model;

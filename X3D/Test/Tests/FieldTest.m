@@ -14,7 +14,6 @@
 @property BasicEncodable* text;
 @property NSString* info;
 @property BOOL reset;
-@property NSMutableData* lights;
 @property MTLRenderPassDescriptor* renderPassDescriptor;
 
 @end
@@ -22,7 +21,7 @@
 @implementation FieldTest
 
 - (void)setup:(MTLView *)view {
-    self.scene = [[Scene alloc] init];
+    self.scene = [[Scene alloc] initInDesign:YES];
     self.scene.camera.eye = Vec3Make(60, 60, 60);
     
     self.mesh = [[Mesh alloc] initWithView:view];
@@ -53,8 +52,6 @@
     
     self.info = @"Hello World!";
     self.reset = YES;
-    
-    self.lights = [NSMutableData dataWithCapacity:MAX_LIGHTS * sizeof(Light)];
     
     view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
     
@@ -97,11 +94,12 @@
     id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:self.renderPassDescriptor];
     
     [encoder setViewport:(MTLViewport){ 0, 0, w, h, 0, 1 }];
+    [self.scene bufferLights];
     [self.text encodeWithEncoder:encoder
                       projection:Mat4Ortho(0, w, h, 0, -1, 1)
                             view:Mat4Identity()
                            model:Mat4Identity()
-                          lights:self.lights];
+                          lights:nil];
     [encoder endEncoding];
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
@@ -127,12 +125,13 @@
         [self.scene.root calcTransform];
         
         [encoder setViewport:(MTLViewport){ 0, 0, view.width, view.height, 0, 1 }];
-        [self.scene encodeWithEncoder:encoder lights:self.lights];
+        [self.scene bufferLights];
+        [self.scene encodeWithEncoder:encoder];
         [self.text encodeWithEncoder:encoder
                           projection:Mat4Ortho(0, view.width, view.height, 0, -1, 1)
                                 view:Mat4Identity()
                                model:Mat4Identity()
-                              lights:self.lights];
+                              lights:nil];
         [encoder endEncoding];
         [commandBuffer presentDrawable:drawable];
         [commandBuffer commit];
@@ -161,7 +160,6 @@
     self.scene = nil;
     self.mesh = nil;
     self.text = nil;
-    self.lights = nil;
     self.renderPassDescriptor = nil;
 }
 
