@@ -31,7 +31,6 @@
 @property (weak) MTLView* view;
 @property NSArray<Test*>* tests;
 @property Test* test;
-@property (weak) NSTimer* timer;
 
 @end
 
@@ -41,23 +40,24 @@
     self = [super init];
     if(self) {
         self.view = view;
-        self.view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+        self.view.clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
         
         self.window = window;
         
         self.tests = tests;
         self.test = nil;
         
-        self.timer = [NSTimer scheduledTimerWithTimeInterval:1 / 60.0 target:self selector:@selector(nextFrame) userInfo:nil repeats:YES];
+        view.delegate = self;
     }
     return self;
 }
 
-- (void)nextFrame {
+- (void)mtkView:(MTKView *)view drawableSizeWillChange:(CGSize)size {
+}
+
+- (void)drawInMTKView:(MTKView *)view {
     static int index = -1;
     static BOOL fs = NO;
-    
-    [self.view createTextures];
 
     if(self.test) {
         if(![self.test nextFrame:self.view]) {
@@ -65,19 +65,19 @@
             [self.test tearDown];
             [self setTest:nil];
             
-            self.view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+            self.view.currentRenderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
             
             index = -1;
         }
     } else {
-        id<CAMetalDrawable> drawable = [self.view.metalLayer nextDrawable];
         id result;
+        id<CAMetalDrawable> drawable = [self.view currentDrawable];
         
         if(drawable) {
-            self.view.renderPassDescriptor.colorAttachments[0].texture = drawable.texture;
+            self.view.currentRenderPassDescriptor.colorAttachments[0].texture = drawable.texture;
             
             id<MTLCommandBuffer> commandBuffer = [self.view.commandQueue commandBuffer];
-            id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:self.view.renderPassDescriptor];
+            id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:self.view.currentRenderPassDescriptor];
             
             [encoder setViewport:(MTLViewport){ 0, 0, self.view.width, self.view.height, 0, 1 }];
             [encoder endEncoding];
@@ -85,16 +85,24 @@
             [commandBuffer commit];
             [commandBuffer waitUntilCompleted];
         }
+        
+        
         [self.view.ui begin];
-        if([self.view.ui button:@"App.full.screen.button" gap:0 caption:@"Full Screen" selected:fs]) {
-            [self.window toggleFullScreen:nil];
-            fs = !fs;
-        }
-        [self.view.ui addRow:5];
-        if((result = [self.view.ui list:@"App.test.list" gap:0 items:self.tests size:NSMakeSize(250, 200) selection:index])) {
+        
+        [self.view.ui beginPanel:@"TestFramework.panel"];
+        if((result = [self.view.ui list:@"TestFramework.test.list" gap:0 items:self.tests size:NSMakeSize(250, 200) selection:index])) {
             self.test = self.tests[[result intValue]];
         }
         index = -2;
+        [self.view.ui addRow:5];
+        if([self.view.ui button:@"TestFramework.full.screen.button" gap:0 caption:@"Full Screen" selected:fs]) {
+            [self.window toggleFullScreen:nil];
+            fs = !fs;
+        }
+        [self.view.ui endPanel];
+        
+        [self.view.ui setView:self.view rightOf:YES panel:@"TestFramework.panel" gap:5 anchorBottomRight:NSMakeSize(5, 5)];
+    
         [self.view.ui end];
         
         if(self.test) {
@@ -111,7 +119,7 @@
 }
 
 - (void)tearDown {
-    [self.timer invalidate];
+    self.view.delegate = nil;
     
     Log(@"%i instance(s)", XObject.instances);
     
@@ -141,6 +149,8 @@
 #define SCENE_LIST 2
 #define NODE_EDITOR 3
 
+static Editor* _INSTANCE = nil;
+
 @interface Editor ()
 
 @property Scene* scene;
@@ -157,7 +167,6 @@
 @property NSArray* modes;
 @property BOOL down;
 @property int snap;
-@property NSURL* sceneURL;
 @property BOOL resetNodeEditor;
 @property BOOL resetSnap;
 
@@ -216,7 +225,7 @@
     
     [self.text createDepthAndPipelineState];
     
-    view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+    view.currentRenderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
     
     self.nodeList = [NSMutableArray arrayWithCapacity:64];
     
@@ -242,21 +251,21 @@
     self.down = NO;
     self.snap = 0;
     self.nodeIndex = -1;
-    self.sceneURL = nil;
+    _sceneURL = nil;
     self.resetNodeEditor = NO;
     self.resetSnap = YES;
+    
+    _INSTANCE = self;
 }
 
 - (BOOL)nextFrame:(MTLView *)view {
-    id<CAMetalDrawable> drawable = [view.metalLayer nextDrawable];
+    id<CAMetalDrawable> drawable = [view currentDrawable];
     
     [self.scene.root preUpdateWithScene:self.scene view:view];
     
     if(drawable) {
-        view.renderPassDescriptor.colorAttachments[0].texture = drawable.texture;
-        
         id<MTLCommandBuffer> commandBuffer = [view.commandQueue commandBuffer];
-        id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.renderPassDescriptor];
+        id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.currentRenderPassDescriptor];
         
         [self.scene.camera calcTransforms:view.aspectRatio];
         [self.scene.root calcTransform];
@@ -280,13 +289,14 @@
     NSString* info = [NSString stringWithFormat:@"FPS=%i, OBJ=%i", view.frameRate, XObject.instances];
     
     [self.text clear];
-    [self.text pushText:info xy:NSMakePoint(10, 10) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
+    [self.text pushText:info scale:2 xy:NSMakePoint(10, 10) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
     [self.text bufferVertices];
     
     UIManager* ui = view.ui;
     BOOL quit = NO;
     
     [ui begin];
+    [ui beginPanel:@"Editor.top.panel"];
     if([ui button:@"Editor.quit.button" gap:0 caption:@"Quit" selected:NO]) {
         quit = YES;
     }
@@ -319,91 +329,121 @@
                 self.mode = i;
             }
         }
+    }
+    [ui endPanel];
+    
+    if(self.selection) {
+        Node* transform = self.selection.transform;
+        
+        [ui beginPanel:@"Editor.bottom.panel"];
+
+        if([ui button:@"Editor.clear.sel.button" gap:0 caption:@"Clear" selected:NO]) {
+            self.nodeIndex = self.selNode = -1;
+            self.editor = -1;
+        }
+        
         if(self.selection) {
-            [ui addRow:5];
-            if([ui button:@"Editor.clear.sel.button" gap:0 caption:@"Clear" selected:NO]) {
-                self.nodeIndex = self.selNode = -1;
+            if([ui button:@"Editor.edit.node.button" gap:5 caption:@"Edit" selected:self.editor == NODE_EDITOR]) {
+                self.editor = NODE_EDITOR;
+                self.resetNodeEditor = YES;
             }
-            if(self.selection) {
-                if([ui button:@"Editor.edit.node.button" gap:5 caption:@"Edit" selected:self.editor == NODE_EDITOR]) {
-                    self.editor = NODE_EDITOR;
-                    self.resetNodeEditor = YES;
-                }
+            if(transform) {
                 if([ui button:@"Editor.zero.node.pos.button" gap:5 caption:@"Zero Pos" selected:NO]) {
-                    self.selection.position = Vec3Make(0, 0, 0);
+                    transform.position = Vec3Make(0, 0, 0);
                 }
                 if([ui button:@"Editor.node.pos.to.targ.button" gap:5 caption:@"Pos To Target" selected:NO]) {
-                    self.selection.position = self.scene.camera.target;
+                    transform.position = self.scene.camera.target;
                 }
                 if([ui button:@"Editor.targ.to.node.pos.button" gap:5 caption:@"Target To Pos" selected:NO]) {
                     Vec3 offset = self.scene.camera.eye - self.scene.camera.target;
                     
-                    self.scene.camera.target = self.selection.position;
-                    self.scene.camera.eye = self.selection.position + offset;
+                    self.scene.camera.target = transform.position;
+                    self.scene.camera.eye = transform.position + offset;
                 }
                 if([ui button:@"Editor.zero.node.rot.button" gap:5 caption:@"Zero Rot" selected:NO]) {
-                    self.selection.rotation = Mat4Identity();
+                    transform.rotation = Mat4Identity();
                 }
                 if([ui button:@"Editor.node.rot.y.45.button" gap:5 caption:@"Rot Y 45" selected:NO]) {
-                    self.selection.rotation = Mat4Mul(self.selection.rotation, Mat4Rotate(45, Vec3Make(0, 1, 0)));
-                }
-                if([ui button:@"Editor.del.node.button" gap:5 caption:@"-Node" selected:NO]) {
-                    self.editor = -1;
-                    [self.selection detach];
-                    [self populateNodeList];
+                    transform.rotation = Mat4Mul(transform.rotation, Mat4Rotate(45, Vec3Make(0, 1, 0)));
                 }
             }
+            if([ui button:@"Editor.del.node.button" gap:5 caption:@"-Node" selected:NO]) {
+                self.editor = -1;
+                [self.selection detach];
+                [self populateNodeList];
+            }
         }
+        [ui endPanel];
     }
     
     id result;
     NSSize size = NSMakeSize(250, 300);
     
-    if(self.editor == NODE_TYPE_LIST) {
-        [ui addRow:5];
-        if((result = [ui list:@"Editor.node.type.list" gap:0 items:self.nodeTypeNames size:size selection:self.selNodeType])) {
-            Node* node = [[NSClassFromString(self.nodeTypeNames[[result intValue]]) alloc] init];
-            
-            self.editor = NODE_EDITOR;
-            self.selNode = self.nodeIndex = self.scene.root.childCount;
-            
-            [node setup:self.scene view:view];
-            
-            [self.scene.root addChild:node];
-            [self populateNodeList];
-            
-            self.nodeIndex = self.scene.root.childCount - 1;
+    if(self.editor != -1) {
+        [ui beginPanel:@"Editor.side.panel"];
+        if(self.editor == NODE_TYPE_LIST) {
+            if((result = [ui list:@"Editor.node.type.list" gap:0 items:self.nodeTypeNames size:size selection:self.selNodeType])) {
+                Node* node = [[NSClassFromString(self.nodeTypeNames[[result intValue]]) alloc] init];
+                
+                self.editor = NODE_EDITOR;
+                self.selNode = self.nodeIndex = self.scene.root.childCount;
+                
+                [node setup:self.scene view:view];
+                
+                [self.scene.root addChild:node];
+                [self populateNodeList];
+                
+                self.nodeIndex = self.scene.root.childCount - 1;
+            }
+            self.selNodeType = -2;
+        } else if(self.editor == NODE_LIST) {
+            if((result = [ui list:@"Editor.node.list" gap:0 items:self.nodeList size:size selection:self.selNode])) {
+                self.nodeIndex = [result intValue];
+                self.editor = NODE_EDITOR;
+                self.resetNodeEditor = YES;
+            }
+            self.selNode = -2;
+        } else if(self.editor == SCENE_LIST) {
+            if((result = [ui list:@"Editor.scene.list" gap:0 items:self.sceneNames size:size selection:self.selSceneName])) {
+                NSString* name = self.sceneNames[[result intValue]];
+                
+                _sceneURL = [view.assets.baseURL URLByAppendingPathComponent:@"assets/scenes"];
+                _sceneURL = [self.sceneURL URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.txt", name]];
+                
+                self.scene = [Scene deserialize:self.sceneURL view:view inDesign:YES];
+                self.editor = -1;
+                
+                [self populateNodeList];
+            }
+            self.selSceneName = -2;
+        } else if(self.editor == NODE_EDITOR) {
+            [self.selection handleUI:self.scene view:view reset:self.resetNodeEditor];
+            self.resetNodeEditor = NO;
         }
-        self.selNodeType = -2;
-    } else if(self.editor == NODE_LIST) {
-        [ui addRow:5];
-        if((result = [ui list:@"Editor.node.list" gap:0 items:self.nodeList size:size selection:self.selNode])) {
-            self.nodeIndex = [result intValue];
-            self.editor = NODE_EDITOR;
-            self.resetNodeEditor = YES;
-        }
-        self.selNode = -2;
-    } else if(self.editor == SCENE_LIST) {
-        [ui addRow:5];
-        if((result = [ui list:@"Editor.scene.list" gap:0 items:self.sceneNames size:size selection:self.selSceneName])) {
-            NSString* name = self.sceneNames[[result intValue]];
-            
-            self.sceneURL = [view.assets.baseURL URLByAppendingPathComponent:@"assets/scenes"];
-            self.sceneURL = [self.sceneURL URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.txt", name]];
-            
-            self.scene = [Scene deserialize:self.sceneURL view:view inDesign:YES];
-            self.editor = -1;
-
-            [self populateNodeList];
-        }
-        self.selSceneName = -2;
-    } else if(self.editor == NODE_EDITOR) {
-        [ui addRow:5];
-        [self.selection handleUI:self.scene view:view reset:self.resetNodeEditor];
-        self.resetNodeEditor = NO;
+        [ui endPanel];
     }
+    
+    NSSize sidePanelSize = [ui panelSize:@"Editor.side.panel"];
+    NSSize bottomPanelSize = [ui panelSize:@"Editor.bottom.panel"];
+    
+    if([ui panelIsHidden:@"Editor.side.panel"]) {
+        sidePanelSize.width = 0;
+    } else {
+        sidePanelSize.width += 5;
+    }
+    if([ui panelIsHidden:@"Editor.bottom.panel"]) {
+        bottomPanelSize.height = 0;
+    } else {
+        bottomPanelSize.height += 5;
+    }
+    
+    [ui setView:view rightOf:NO panel:@"Editor.top.panel" gap:5 anchorBottomRight:NSMakeSize(sidePanelSize.width + 5, bottomPanelSize.height + 5)];
+    [ui setPanel:@"Editor.bottom.panel" belowView:view gap:5];
+    [ui setPanel:@"Editor.side.panel" rightOfView:view gap:5];
+    
     [ui end];
     
+
     if(self.scene) {
         [self.scene.root updateWithScene:self.scene view:view];
         
@@ -420,7 +460,7 @@
             }
             
             if(self.mode == ZOOM) {
-                offset = Vec3Normalize(offset) * (Vec3Length(offset) + view.deltaY);
+                offset = Vec3Normalize(offset) * (Vec3Length(offset) - view.deltaY);
                 self.scene.camera.eye = self.scene.camera.target + offset;
             } else if(self.mode == ROT) {
                 [self.scene.camera rotate:view];
@@ -468,6 +508,8 @@
     self.scene = nil;
     self.text = nil;
     self.nodeList = nil;
+    
+    _INSTANCE = nil;
 }
 
 - (Node*)selection {
@@ -487,6 +529,10 @@
             [self.nodeList addObject:[self.scene.root childAt:i]];
         }
     }
+}
+
++ (Editor*)instance {
+    return _INSTANCE;
 }
 
 @end

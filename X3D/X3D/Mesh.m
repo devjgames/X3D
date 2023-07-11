@@ -26,6 +26,10 @@
         self.indices = [NSMutableData dataWithCapacity:4];
         self.faces = [NSMutableArray arrayWithCapacity:1];
         self.encodable = [[BasicEncodable alloc] initWithView:view vertexCount:1];
+        self.castsShadow = NO;
+        self.receivesShadow = YES;
+        self.lightMapEnabled = NO;
+        self.aoEnabled = YES;
     }
     return self;
 }

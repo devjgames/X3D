@@ -38,9 +38,9 @@ void Log(NSString* format, ...);
 
 @class UIManager;
 
-@interface MTLView : NSView
 
-@property (readonly) MTLRenderPassDescriptor* renderPassDescriptor;
+@interface MTLView : MTKView <NSWindowDelegate>
+
 @property (readonly) id<MTLCommandQueue> commandQueue;
 @property (readonly) id<MTLLibrary> library;
 @property (readonly) AssetManager* assets;
@@ -53,9 +53,7 @@ void Log(NSString* format, ...);
 @property (readonly) int deltaY;
 @property (readonly) UIManager* ui;
 
-- (id)initWithView:(NSView*)view;
-- (CAMetalLayer*)metalLayer;
-- (id<MTLDevice>)device;
+- (id)initWithView:(NSView*)view device:(id<MTLDevice>)device;
 - (int)width;
 - (int)height;
 - (float)aspectRatio;
@@ -63,8 +61,8 @@ void Log(NSString* format, ...);
 - (BOOL)isKeyDown:(int)key;
 - (void)resetTimer;
 - (void)tick;
-- (void)createTextures;
 - (void)tearDown;
+- (void)saveRGBA:(NSData*)data width:(int)w height:(int)h toPath:(NSString*)path;
 
 @end
 

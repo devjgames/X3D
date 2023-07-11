@@ -7,7 +7,7 @@
 
 #import <X3D/X3D.h>
 
-@interface UIButton : NSView
+@interface UIButton : UIView
 
 @property (readonly, weak) UIManager* manager;
 @property (readonly) NSTextField* field;
@@ -25,6 +25,8 @@
     self = [super initWithFrame:NSMakeRect(0, 0, 0, 0)];
     if(self) {
         self.wantsLayer = YES;
+        self.layer = [CALayer layer];
+        
         _manager = manager;
         _changed = NO;
         _down = NO;
@@ -36,7 +38,6 @@
         _field.bordered = NO;
         
         [self addSubview:_field];
-        [manager.window.contentView addSubview:self];
     }
     return self;
 }
@@ -61,22 +62,33 @@
     return YES;
 }
 
-- (NSPoint)mouseLocation {
-    return [self.window convertPointFromScreen:NSEvent.mouseLocation];
+- (NSPoint)mouseLocation:(NSEvent*)event {
+    NSPoint p = event.locationInWindow;
+    
+    p.y = self.window.contentView.frame.size.height - p.y;
+    
+    if([self.superview isKindOfClass:[UIPanel class]]) {
+        p.x -= self.superview.frame.origin.x;
+        p.y -= self.superview.frame.origin.y;
+    }
+    return p;
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    if([self hitTest:self.mouseLocation]) {
+    if([self hitTest:[self mouseLocation:event]]) {
         _down = YES;
     }
 }
 
 - (void)mouseUp:(NSEvent *)event {
-    if([self hitTest:self.mouseLocation]) {
+    NSPoint p = [self mouseLocation:event];
+    
+    if([self hitTest:p]) {
         _changed = YES;
     }
     _down = NO;
 }
+
 
 @end
 
@@ -105,11 +117,9 @@
     }
     button.field.textColor = color;
     button.layer.borderColor = color.CGColor;
-    button.layer.backgroundColor = self.backgroundColor.CGColor;
     button.layer.cornerRadius = self.cornerRadius;
     button.layer.borderWidth = self.borderWidth;
-    
-    [button.layer setNeedsDisplay];
+    button.layer.backgroundColor = self.backgroundColor.CGColor;
     
     return button.clicked;
 }

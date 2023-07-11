@@ -20,7 +20,9 @@
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     // Insert code here to initialize your application
     
-    MTLView* view = [[MTLView alloc] initWithView:self.window.contentView];
+    [NSApp activateIgnoringOtherApps:YES];
+    
+    MTLView* view = [[MTLView alloc] initWithView:self.window.contentView device:MTLCreateSystemDefaultDevice()];
     NSURL* url = [[NSFileManager defaultManager] URLsForDirectory:NSDesktopDirectory inDomains:NSUserDomainMask][0];
     
     url = [url URLByAppendingPathComponent:@"XCode/X3DTest/X3DTest"];

@@ -7,13 +7,12 @@
 
 #import "Test.h"
 
-static Player* INSTANCE = nil;
+static Player* _INSTANCE = nil;
 
 @interface Player ()
 
 @property Scene* scene;
 @property BasicEncodable* text;
-@property NSURL* url;
 
 @end
 
@@ -22,15 +21,15 @@ static Player* INSTANCE = nil;
 - (id)initWithPath:(NSString *)path baseURL:(NSURL *)baseURL {
     self = [super init];
     if(self) {
-        self.url = [baseURL URLByAppendingPathComponent:path];
+        _url = [baseURL URLByAppendingPathComponent:path];
     }
     return self;
 }
 
 - (void)setup:(MTLView *)view {
-    view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+    view.clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
     
-    INSTANCE = self;
+    _INSTANCE = self;
 
     self.info = @"";
     self.scene = [Scene deserialize:self.url view:view inDesign:NO];
@@ -47,15 +46,13 @@ static Player* INSTANCE = nil;
 }
 
 - (BOOL)nextFrame:(MTLView *)view {
-    id<CAMetalDrawable> drawable = [view.metalLayer nextDrawable];
-    
     [self.scene.root preUpdateWithScene:self.scene view:view];
     
+    id<CAMetalDrawable> drawable = [view currentDrawable];
+    
     if(drawable) {
-        view.renderPassDescriptor.colorAttachments[0].texture = drawable.texture;
-        
         id<MTLCommandBuffer> commandBuffer = [view.commandQueue commandBuffer];
-        id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.renderPassDescriptor];
+        id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.currentRenderPassDescriptor];
         
         [self.scene.camera calcTransforms:view.aspectRatio];
         [self.scene.root calcTransform];
@@ -74,12 +71,14 @@ static Player* INSTANCE = nil;
         [commandBuffer waitUntilCompleted];
     }
     
+    view.frame = view.window.contentView.frame;
+    
     NSString* info = [NSString stringWithFormat:@"FPS = %i\nOBJ = %i\nESC = Quit", view.frameRate, XObject.instances];
     int h = view.height;
     
     [self.text clear];
-    [self.text pushText:info xy:NSMakePoint(10, 10) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
-    [self.text pushText:self.info xy:NSMakePoint(10, h - 22) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
+    [self.text pushText:info scale:2 xy:NSMakePoint(10, 10) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
+    [self.text pushText:self.info scale:2 xy:NSMakePoint(10, h - 34) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
     [self.text bufferVertices];
     
     [self.scene.root updateWithScene:self.scene view:view];
@@ -91,7 +90,7 @@ static Player* INSTANCE = nil;
     self.scene = nil;
     self.text = nil;
     
-    INSTANCE = nil;
+    _INSTANCE = nil;
 }
 
 - (NSString*)description {
@@ -105,7 +104,7 @@ static Player* INSTANCE = nil;
 }
 
 + (Player*)instance {
-    return INSTANCE;
+    return _INSTANCE;
 }
 
 @end

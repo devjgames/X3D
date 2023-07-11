@@ -130,7 +130,7 @@ BasicVertex Vertex(float x, float y, float z, float s, float t, float u, float v
     }
 }
 
-- (void)pushText:(NSString *)text xy:(NSPoint)xy size:(NSSize)size cols:(int)cols lineSpacing:(int)spacing color:(Vec4)color {
+- (void)pushText:(NSString *)text scale:(int)scale xy:(NSPoint)xy size:(NSSize)size cols:(int)cols lineSpacing:(int)spacing color:(Vec4)color {
     static char* ptr, c;
     static int sx, i, row, col;
     
@@ -139,17 +139,17 @@ BasicVertex Vertex(float x, float y, float z, float s, float t, float u, float v
     while((c = *ptr++)) {
         if(c == '\n') {
             xy.x = sx;
-            xy.y += size.height + spacing;
+            xy.y += size.height * scale + spacing * scale;
         } else {
             i = (int)c - (int)' ';
             if(i >= 0 && i < 100) {
                 col = i % cols;
                 row = i / cols;
                 [self pushSrcRect:NSMakeRect(col * size.width, row * size.height, size.width, size.height)
-                          dstRect:NSMakeRect(xy.x, xy.y, size.width, size.height)
+                          dstRect:NSMakeRect(xy.x, xy.y, size.width * scale, size.height * scale)
                             color:color
                              flip:NO];
-                xy.x += size.width;
+                xy.x += size.width * scale;
             }
         }
     }
@@ -254,7 +254,7 @@ BasicVertex Vertex(float x, float y, float z, float s, float t, float u, float v
     
     pipelineDescriptor.vertexFunction = [self.view.library newFunctionWithName:@"vertexShader"];
     pipelineDescriptor.fragmentFunction = [self.view.library newFunctionWithName:@"fragmentShader"];
-    pipelineDescriptor.colorAttachments[0].pixelFormat = self.view.metalLayer.pixelFormat;
+    pipelineDescriptor.colorAttachments[0].pixelFormat = self.view.colorPixelFormat;
     pipelineDescriptor.colorAttachments[0].blendingEnabled = self.blendEnabled;
     if(self.blendEnabled) {
         pipelineDescriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
@@ -271,7 +271,7 @@ BasicVertex Vertex(float x, float y, float z, float s, float t, float u, float v
             pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         }
     }
-    pipelineDescriptor.depthAttachmentPixelFormat = self.view.renderPassDescriptor.depthAttachment.texture.pixelFormat;
+    pipelineDescriptor.depthAttachmentPixelFormat = self.view.depthStencilPixelFormat;
     
     NSError* error = nil;
     

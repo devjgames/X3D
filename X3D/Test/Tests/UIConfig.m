@@ -10,23 +10,21 @@
 @implementation UIConfig
 
 - (void)setup:(MTLView *)view {
-    view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+    view.clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
 }
 
 - (BOOL)nextFrame:(MTLView *)view {
     static BOOL round = YES;
-    static BOOL invertColors = NO;
+    static BOOL dark = NO;
     static BOOL smallFont = YES;
     
     BOOL quit = NO;
-    
-    id<CAMetalDrawable> drawable = [view.metalLayer nextDrawable];
+
+    id<CAMetalDrawable> drawable = [view currentDrawable];
     
     if(drawable) {
-        view.renderPassDescriptor.colorAttachments[0].texture = drawable.texture;
-        
         id<MTLCommandBuffer> commandBuffer = [view.commandQueue commandBuffer];
-        id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.renderPassDescriptor];
+        id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.currentRenderPassDescriptor];
         
         [encoder setViewport:(MTLViewport){ 0, 0, view.width, view.height, 0, 1 }];
         [encoder endEncoding];
@@ -36,6 +34,7 @@
     }
 
     [view.ui begin];
+    [view.ui beginPanel:@"UIConfig.panel"];
     if([view.ui button:@"UIConfig.round.button" gap:0 caption:@"Round" selected:round]) {
         round = !round;
         if(round) {
@@ -44,19 +43,25 @@
             view.ui.cornerRadius = 0;
         }
     }
-    if([view.ui button:@"UIConfig.invert.colors.button" gap:5 caption:@"Invert Colors" selected:invertColors]) {
-        NSColor* color = view.ui.backgroundColor;
-        
-        view.ui.backgroundColor = view.ui.foregroundColor;
-        view.ui.foregroundColor = color;
-        
-        invertColors = !invertColors;
+    if([view.ui button:@"UIConfig.dark.theme.button" gap:5 caption:@"Dark Theme" selected:dark]) {
+        dark = !dark;
+        if(dark) {
+            view.ui.backgroundColor = [NSColor blackColor];
+            view.ui.foregroundColor = [NSColor whiteColor];
+            view.ui.selectionColor = [NSColor orangeColor];
+            view.ui.windowColor = view.ui.backgroundColor;
+        } else {
+            view.ui.backgroundColor = [NSColor grayColor];
+            view.ui.foregroundColor = [NSColor blackColor];
+            view.ui.selectionColor = [NSColor whiteColor];
+            view.ui.windowColor = [NSColor darkGrayColor];
+        }
     }
     if([view.ui button:@"UIConfig.small.font.button" gap:5 caption:@"Small Font" selected:smallFont]) {
         smallFont = !smallFont;
         if(smallFont) {
             view.ui.borderWidth = 1;
-            view.ui.font = [NSFont monospacedSystemFontOfSize:12 weight:NSFontWeightLight];
+            view.ui.font = [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightLight];
         } else {
             view.ui.borderWidth = 2;
             view.ui.font = [NSFont monospacedSystemFontOfSize:14 weight:NSFontWeightLight];
@@ -65,6 +70,10 @@
     if([view.ui button:@"UIConfig.quit.button" gap:5 caption:@"Quit" selected:NO]) {
         quit = YES;
     }
+    [view.ui endPanel];
+    
+    [view.ui setView:view rightOf:NO panel:@"UIConfig.panel" gap:5 anchorBottomRight:NSMakeSize(5, 5)];
+    
     [view.ui end];
     
     return !quit;

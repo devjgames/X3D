@@ -13,7 +13,7 @@
 
 @end
 
-@interface TestFramework : NSObject
+@interface TestFramework : NSObject <MTKViewDelegate>
 
 - (id)initWithWindow:(NSWindow*)window view:(MTLView*)view tests:(NSArray<Test*>*)tests;
 - (void)tearDown;
@@ -21,5 +21,9 @@
 @end
 
 @interface Editor : Test
+
+@property (readonly) NSURL* sceneURL;
+
++ (Editor*)instance;
 
 @end

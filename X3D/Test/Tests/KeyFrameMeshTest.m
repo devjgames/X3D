@@ -57,7 +57,7 @@
     light.lightRadius = 150;
     [self.scene.root addChild:light];
     
-    view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+    view.clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
     
     self.sequences = [KeyFrameMesh sequences];
     self.sequenceNames = [NSMutableArray arrayWithCapacity:self.sequences.count];
@@ -82,13 +82,11 @@
 }
 
 - (BOOL)nextFrame:(MTLView *)view {
-    id<CAMetalDrawable> drawable = [view.metalLayer nextDrawable];
+    id<CAMetalDrawable> drawable = [view currentDrawable];
     
     if(drawable) {
-        view.renderPassDescriptor.colorAttachments[0].texture = drawable.texture;
-        
         id<MTLCommandBuffer> commandBuffer = [view.commandQueue commandBuffer];
-        id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.renderPassDescriptor];
+        id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.currentRenderPassDescriptor];
         
         [self.scene.camera calcTransforms:view.aspectRatio];
         [self.scene.root calcTransform];
@@ -115,23 +113,13 @@
     NSString* info = [NSString stringWithFormat:@"FPS = %i\nOBJ = %i\nESC = Quit", view.frameRate, XObject.instances];
     
     [self.text clear];
-    [self.text pushText:info xy:NSMakePoint(10, 10) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
+    [self.text pushText:info scale:2 xy:NSMakePoint(10, 10) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
     [self.text bufferVertices];
     
     id result;
     
     [view.ui begin];
-    if(self.mesh) {
-        if([view.ui button:@"KeyFrameMeshTest.warp.button" gap:0 caption:@"Warp Key Frame Mesh" selected:self.mesh.basicEncodable.warpEnabled]) {
-            self.mesh.basicEncodable.warpEnabled = !self.mesh.basicEncodable.warpEnabled;
-            if(self.mesh.childCount) {
-                KeyFrameMesh* weapon = [self.mesh childAt:0];
-                
-                weapon.basicEncodable.warpEnabled = !weapon.basicEncodable.warpEnabled;
-            }
-        }
-        [view.ui addRow:5];
-    }
+    [view.ui beginPanel:@"KeyFrameMeshTest.panel"];
     if((result = [view.ui list:@"KeyFrameMeshTest.mesh.list" gap:0 items:self.meshNames size:NSMakeSize(250, 200) selection:self.selMesh])) {
         NSString* path = self.meshPaths[[result intValue]];
         
@@ -194,9 +182,22 @@
                 ];
             }
         }
+        [view.ui addRow:5];
+        if([view.ui button:@"KeyFrameMeshTest.warp.button" gap:0 caption:@"Warp Key Frame Mesh" selected:self.mesh.basicEncodable.warpEnabled]) {
+            self.mesh.basicEncodable.warpEnabled = !self.mesh.basicEncodable.warpEnabled;
+            if(self.mesh.childCount) {
+                KeyFrameMesh* weapon = [self.mesh childAt:0];
+                
+                weapon.basicEncodable.warpEnabled = !weapon.basicEncodable.warpEnabled;
+            }
+        }
     }
     self.selSequence = -2;
     self.selMesh = -2;
+    [view.ui endPanel];
+    
+    [view.ui setView:view rightOf:YES panel:@"KeyFrameMeshTest.panel" gap:5 anchorBottomRight:NSMakeSize(5, 5)];
+    
     [view.ui end];
     
     return ![view isKeyDown:53];

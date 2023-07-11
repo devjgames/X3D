@@ -23,7 +23,7 @@
 
 @end
 
-@interface UIList : NSView
+@interface UIList : UIView
 
 @property (readonly, weak) UIManager* manager;
 @property (readonly) NSScrollView* scrollView;
@@ -45,6 +45,7 @@
         _manager = manager;
         
         self.wantsLayer = YES;
+        self.layer = [CALayer layer];
         
         _selectedIndex = -1;
         _changed = nil;
@@ -54,12 +55,13 @@
         _scrollView.hasVerticalScroller = YES;
         
         _listView = [[UIListView alloc] initWithFrame:NSMakeRect(0, 0, size.width - manager.gap * 2, 0)];
+        _listView.wantsLayer = YES;
         
         _scrollView.documentView = _listView;
+
+        _scrollView.drawsBackground = NO;
         
         [self addSubview:self.scrollView];
-        
-        [manager.window.contentView addSubview:self];
     }
     return self;
 }
@@ -88,12 +90,20 @@
     return YES;
 }
 
-- (NSPoint)mouseLocation {
-    return [self.window convertPointFromScreen:NSEvent.mouseLocation];
+- (NSPoint)mouseLocation:(NSEvent*)event {
+    NSPoint p = event.locationInWindow;
+    
+    p.y = self.window.contentView.frame.size.height - p.y;
+    
+    if([self.superview isKindOfClass:[UIPanel class]]) {
+        p.x -= self.superview.frame.origin.x;
+        p.y -= self.superview.frame.origin.y;
+    }
+    return p;
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    NSView* view = [self hitTest:self.mouseLocation];
+    NSView* view = [self hitTest:[self mouseLocation:event]];
     int i = -1;
     int j = 0;
     
@@ -157,13 +167,15 @@
             [list.listView.subviews[0] removeFromSuperview];
         }
         for(id item in items) {
-            NSTextField* field = [NSTextField textFieldWithString:[NSString stringWithFormat:@"%@", item]];
+            NSTextField* field = [NSTextField labelWithString:[NSString stringWithFormat:@"%@", item]];
             
             field.font = self.font;
             field.editable = NO;
             field.selectable = NO;
+            field.bezeled = NO;
             field.drawsBackground = NO;
             field.bordered = NO;
+            [field sizeToFit];
             [list.listView addSubview:field];
         }
         [list clearChanged];
@@ -203,12 +215,9 @@
     [self locate:key gap:gap];
     
     list.layer.borderColor = self.foregroundColor.CGColor;
-    list.layer.backgroundColor = self.backgroundColor.CGColor;
     list.layer.cornerRadius = self.cornerRadius;
     list.layer.borderWidth = self.borderWidth;
-    list.scrollView.contentView.backgroundColor = self.backgroundColor;
-    
-    [list.layer setNeedsDisplay];
+    list.layer.backgroundColor = self.backgroundColor.CGColor;
     
     return list.selectionChanged;
 }

@@ -134,6 +134,25 @@ void Log(NSString* format, ...) {
 
 @end
 
+@interface ContentView : NSView
+
+@end
+
+@implementation ContentView
+
+- (id)initWithFrame:(NSRect)frameRect {
+    self = [super initWithFrame:frameRect];
+    if(self) {
+    }
+    return self;
+}
+
+- (BOOL)isFlipped {
+    return YES;
+}
+
+@end
+
 static BOOL _KEY_STATE[400];
 static BOOL _BUTTON_STATE[] = { NO, NO };
 
@@ -148,29 +167,23 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
 
 @end
 
-@implementation MTLView
+@implementation MTLView {
+    CVDisplayLinkRef _displayLink;
+    dispatch_source_t _displaySource;
+}
 
-- (id)initWithView:(NSView *)view {
-    self = [super initWithFrame:view.frame];
+- (id)initWithView:(NSView *)view device:(id<MTLDevice>)device {
+    self = [super initWithFrame:view.frame device:device];
     if(self) {
+        self.delegate = nil;
         self.wantsLayer = YES;
-        self.layer = [CAMetalLayer layer];
-        self.metalLayer.magnificationFilter = kCAFilterNearest;
-        self.metalLayer.drawableSize = self.frame.size;
-        self.metalLayer.pixelFormat = MTLPixelFormatRGBA8Unorm;
-        self.metalLayer.device = MTLCreateSystemDefaultDevice();
+        
+        self.autoResizeDrawable = YES;
+        
+        self.colorPixelFormat = MTLPixelFormatRGBA8Unorm;
+        self.depthStencilPixelFormat = MTLPixelFormatDepth32Float;
         
         self.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;
-         
-        _renderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
-        _renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1);
-        _renderPassDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-        _renderPassDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
-        _renderPassDescriptor.depthAttachment.clearDepth = 1.0f;
-        _renderPassDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
-        _renderPassDescriptor.depthAttachment.storeAction = MTLStoreActionStore;
-        
-        [self createTextures];
         
         _commandQueue = [self.device newCommandQueue];
         
@@ -192,13 +205,18 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
             _KEY_STATE[i] = NO;
         }
         
+        ContentView* contentView = [[ContentView alloc] initWithFrame:view.window.contentView.frame];
+        
+        view.window.contentView = contentView;
+        view = contentView;
+        
         _ui = [[UIManager alloc] initWithWindow:view.window];
         
         [view addSubview:self];
-        
         [self becomeFirstResponder];
-        
         [self resetTimer];
+        
+        view.window.delegate = self;
     }
     return self;
 }
@@ -215,20 +233,12 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
     return YES;
 }
 
-- (CAMetalLayer*)metalLayer {
-    return (CAMetalLayer*)self.layer;
-}
-
-- (id<MTLDevice>)device {
-    return self.metalLayer.device;
-}
-
 - (int)width {
-    return (int)self.frame.size.width;
+    return (int)self.drawableSize.width;
 }
 
 - (int)height {
-    return (int)self.frame.size.height;
+    return (int)self.drawableSize.height;
 }
 
 - (float)aspectRatio {
@@ -358,35 +368,29 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
     _deltaY = 0;
 }
 
-- (void)createTextures {
-    BOOL create = self.renderPassDescriptor.depthAttachment.texture == nil;
-    int w = self.width;
-    int h = self.height;
-    int sx = self.metalLayer.drawableSize.width;
-    int sy = self.metalLayer.drawableSize.height;
-    
-    if(!create) {
-        create = w > 50 && h > 50 && (sx != w || sy != h);
-    }
-    if(create) {
-        Log(@"Creating MTLView textures ...");
-        
-        MTLTextureDescriptor* depthTextureDescriptor = [[MTLTextureDescriptor alloc] init];
-        
-        depthTextureDescriptor.width = w;
-        depthTextureDescriptor.height = h;
-        depthTextureDescriptor.textureType = MTLTextureType2D;
-        depthTextureDescriptor.pixelFormat = MTLPixelFormatDepth32Float;
-        depthTextureDescriptor.usage = MTLTextureUsageRenderTarget;
-        
-        self.renderPassDescriptor.depthAttachment.texture = [self.device newTextureWithDescriptor:depthTextureDescriptor];
-        self.metalLayer.drawableSize = CGSizeMake(w, h);
-    }
-}
-
 - (void)tearDown {
     _assets = nil;
     _ui = nil;
+}
+
+- (void)saveRGBA:(NSData *)data width:(int)w height:(int)h toPath:(NSString *)path {
+    NSURL* url = [self.assets.baseURL URLByAppendingPathComponent:path];
+    CIContext* context = [CIContext context];
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CIImage* image = [CIImage imageWithBitmapData:data bytesPerRow:4 * w size:NSMakeSize(w, h) format:kCIFormatRGBA8 colorSpace:colorSpace];
+    CGImageRef imageRef = [context createCGImage:image fromRect:NSMakeRect(0, 0, w, h)];
+    CGImageDestinationRef imageDest = CGImageDestinationCreateWithURL((CFURLRef)url, (CFStringRef)UTTypePNG.identifier, 1, NULL);
+    
+    CGImageDestinationAddImage(imageDest, imageRef, NULL);
+    CGImageDestinationFinalize(imageDest);
+    
+    CFRelease(imageRef);
+    CFRelease(imageDest);
+    CFRelease(colorSpace);
+}
+
+- (void)windowWillClose:(id)arg {
+    [NSApp terminate:nil];
 }
 
 @end

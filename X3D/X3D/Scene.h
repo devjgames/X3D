@@ -77,6 +77,12 @@
 @property (readonly) Node* root;
 @property (readonly) BOOL inDesign;
 @property (readonly) NSMutableData* lights;
+@property int lightMapWidth;
+@property int lightMapHeight;
+@property float aoStrength;
+@property float aoLength;
+@property float sampleRadius;
+@property int sampleCount;
 
 - (id)initInDesign:(BOOL)inDesign;
 - (void)encodeWithEncoder:(id<MTLRenderCommandEncoder>)encoder;

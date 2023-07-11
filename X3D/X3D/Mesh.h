@@ -7,6 +7,11 @@
 
 @interface Mesh : Node
 
+@property BOOL castsShadow;
+@property BOOL receivesShadow;
+@property BOOL lightMapEnabled;
+@property BOOL aoEnabled;
+
 - (id)initWithView:(MTLView*)view;
 - (int)vertexCount;
 - (BasicVertex)vertexAt:(int)i;

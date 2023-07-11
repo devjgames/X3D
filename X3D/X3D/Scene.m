@@ -249,6 +249,13 @@
         _inDesign = inDesign;
         
         _lights = [NSMutableData dataWithCapacity:sizeof(Light) * MAX_LIGHTS];
+        
+        self.lightMapWidth = 128;
+        self.lightMapHeight = 128;
+        self.sampleCount = 64;
+        self.aoStrength = 2;
+        self.aoLength = 32;
+        self.sampleRadius = 32;
     }
     return self;
 }

@@ -53,7 +53,7 @@
     self.info = @"Hello World!";
     self.reset = YES;
     
-    view.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+    view.clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
     
     MTLTextureDescriptor* descriptor = [[MTLTextureDescriptor alloc] init];
     
@@ -61,7 +61,7 @@
     descriptor.height = 256;
     descriptor.textureType = MTLTextureType2D;
     descriptor.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
-    descriptor.pixelFormat = view.metalLayer.pixelFormat;
+    descriptor.pixelFormat = view.colorPixelFormat;
     
     self.renderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
     self.renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1);
@@ -70,7 +70,7 @@
     self.renderPassDescriptor.colorAttachments[0].texture = [view.device newTextureWithDescriptor:descriptor];
     
     descriptor.usage = MTLTextureUsageRenderTarget;
-    descriptor.pixelFormat = view.renderPassDescriptor.depthAttachment.texture.pixelFormat;
+    descriptor.pixelFormat = view.depthStencilPixelFormat;
     
     self.renderPassDescriptor.depthAttachment.clearDepth = 1;
     self.renderPassDescriptor.depthAttachment.loadAction = MTLLoadActionClear;
@@ -83,7 +83,7 @@
     int h = (int)self.renderPassDescriptor.colorAttachments[0].texture.height;
     
     [self.text clear];
-    [self.text pushText:self.info xy:NSMakePoint(w / 2 - self.info.length * 8 / 2, h / 2 - 6) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(0, 0, 0, 1)];
+    [self.text pushText:self.info scale:1 xy:NSMakePoint(w / 2 - self.info.length * 8 / 2, h / 2 - 6) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(0, 0, 0, 1)];
     [self.text bufferVertices];
     
     self.text.warpEnabled = YES;
@@ -110,16 +110,14 @@
     NSString* info = [NSString stringWithFormat:@"FPS = %i\nOBJ = %i\nESC = Quit", view.frameRate, XObject.instances];
     
     [self.text clear];
-    [self.text pushText:info xy:NSMakePoint(10, 10) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
+    [self.text pushText:info scale:2 xy:NSMakePoint(10, 10) size:NSMakeSize(8, 12) cols:100 lineSpacing:5 color:Vec4Make(1, 1, 1, 1)];
     [self.text bufferVertices];
     
-    id<CAMetalDrawable> drawable = [view.metalLayer nextDrawable];
+    id<CAMetalDrawable> drawable = [view currentDrawable];
     
     if(drawable) {
-        view.renderPassDescriptor.colorAttachments[0].texture = drawable.texture;
-        
         commandBuffer = [view.commandQueue commandBuffer];
-        encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.renderPassDescriptor];
+        encoder = [commandBuffer renderCommandEncoderWithDescriptor:view.currentRenderPassDescriptor];
         
         [self.scene.camera calcTransforms:view.aspectRatio];
         [self.scene.root calcTransform];
@@ -146,9 +144,12 @@
     id result;
     
     [view.ui begin];
+    [view.ui beginPanel:@"FieldTest.panel"];
     if((result = [view.ui field:@"FieldTest.info.field" gap:0 caption:@"Info" text:self.info width:250 reset:self.reset])) {
         self.info = result;
     }
+    [view.ui endPanel];
+    [view.ui setView:view rightOf:NO panel:@"FieldTest.panel" gap:5 anchorBottomRight:NSMakeSize(5, 5)];
     [view.ui end];
     
     self.reset = NO;

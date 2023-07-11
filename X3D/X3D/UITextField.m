@@ -41,7 +41,7 @@
 
 @end
 
-@interface UITextField : NSView
+@interface UITextField : UIView
 
 @property (readonly, weak) UIManager* manager;
 @property (readonly) NSTextField* field;
@@ -59,6 +59,9 @@
     self = [super initWithFrame:NSMakeRect(0, 0, 0, 0)];
     if(self) {
         self.wantsLayer = YES;
+        
+        self.layer = [CALayer layer];
+        
         _manager = manager;
         _changed = nil;
         
@@ -78,11 +81,11 @@
         _label.drawsBackground = NO;
         _label.editable = NO;
         _label.selectable = NO;
+        _label.bezeled = NO;
         _label.bordered = NO;
         
         [self addSubview:_field];
         [self addSubview:_label];
-        [manager.window.contentView addSubview:self];
     }
     return self;
 }
@@ -115,9 +118,9 @@
     CGFloat w = field.field.frame.size.width;
     
     field.label.font = self.font;
+    field.field.font = self.font;
     [field.label sizeToFit];
     
-    field.field.font = self.font;
     if(reset) {
         field.field.stringValue = text;
         [field.field sizeToFit];
@@ -132,11 +135,9 @@
     field.label.textColor = self.selectionColor;
     field.field.textColor = self.foregroundColor;
     field.layer.borderColor = self.foregroundColor.CGColor;
-    field.layer.backgroundColor = self.backgroundColor.CGColor;
     field.layer.cornerRadius = self.cornerRadius;
     field.layer.borderWidth = self.borderWidth;
-    
-    [field.layer setNeedsDisplay];
+    field.layer.backgroundColor = self.backgroundColor.CGColor;
     
     return field.textChanged;
 }

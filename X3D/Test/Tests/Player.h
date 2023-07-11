@@ -8,6 +8,7 @@
 @interface Player : Test
 
 @property NSString* info;
+@property (readonly) NSURL* url;
 
 - (id)initWithPath:(NSString*)path baseURL:(NSURL*)baseURL;
 + (Player*)instance;

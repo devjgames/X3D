@@ -212,6 +212,23 @@
     scene.camera.up = Vec3Make(0, 1, 0);
 }
 
+- (void)handleUI:(Scene *)scene view:(MTLView *)view reset:(BOOL)reset {
+    UIManager* ui = view.ui;
+    Vec3 offset = self.offset;
+    float l = self.targetLength;
+    float h = self.targetHeight;
+    
+    [ui field:@"PlayerNode.offset.field" gap:0 caption:@"Offset" vec3Value:&offset width:100 reset:reset];
+    [ui addRow:5];
+    [ui field:@"PlayerNode.target.length.field" gap:0 caption:@"Target Length" floatValue:&l width:75 reset:reset];
+    [ui addRow:5];
+    [ui field:@"PlayerNode.target.height.field" gap:0 caption:@"Target Height" floatValue:&h width:75 reset:reset];
+    
+    self.offset = offset;
+    self.targetLength = l;
+    self.targetHeight = h;
+}
+
 - (NSString*)serialize:(Scene *)scene view:(MTLView *)view {
     return [NSString stringWithFormat:@"%@ %@ %@ %@ %@ %@ %@ %@",
             [NSNumber numberWithFloat:self.position.x],

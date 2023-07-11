@@ -62,7 +62,7 @@ BasicVertex Vertex(float x, float y, float z, float s, float t, float u, float v
 - (void)setVertex:(BasicVertex)vertex at:(int)i;
 - (void)pushVertex:(BasicVertex)vertex;
 - (void)pushSrcRect:(NSRect)src dstRect:(NSRect)dst color:(Vec4)color flip:(BOOL)flip;
-- (void)pushText:(NSString*)text xy:(NSPoint)xy size:(NSSize)size cols:(int)cols lineSpacing:(int)spacing color:(Vec4)color;
+- (void)pushText:(NSString*)text scale:(int)scale xy:(NSPoint)xy size:(NSSize)size cols:(int)cols lineSpacing:(int)spacing color:(Vec4)color;
 - (void)clear;
 - (void)bufferVertices;
 - (void)createDepthAndPipelineState;
