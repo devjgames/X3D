@@ -158,19 +158,16 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
 
 @interface MTLView ()
 
-@property int lastX;
-@property int lastY;
 @property float lastTime;
 @property float totalTime;
 @property float seconds;
 @property int frames;
+@property BOOL fpsMouse;
+@property NSTrackingArea* trackingArea;
 
 @end
 
-@implementation MTLView {
-    CVDisplayLinkRef _displayLink;
-    dispatch_source_t _displaySource;
-}
+@implementation MTLView
 
 - (id)initWithView:(NSView *)view device:(id<MTLDevice>)device {
     self = [super initWithFrame:view.frame device:device];
@@ -198,9 +195,6 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
         
         _assets = [[AssetManager alloc] initWithView:self];
         
-        self.lastX = 0;
-        self.lastY = 0;
-        
         for(int i = 0; i != (int)(sizeof(_KEY_STATE) / sizeof(BOOL)); i++) {
             _KEY_STATE[i] = NO;
         }
@@ -217,8 +211,36 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
         [self resetTimer];
         
         view.window.delegate = self;
+        
+        _fpsMouse = NO;
+        
+        self.trackingArea = nil;
     }
     return self;
+}
+
+- (void)updateTrackingAreas {
+    if(self.trackingArea) {
+        [self removeTrackingArea:self.trackingArea];
+    }
+
+    const NSTrackingAreaOptions options =
+    NSTrackingMouseEnteredAndExited |
+    NSTrackingActiveInKeyWindow |
+    NSTrackingEnabledDuringMouseDrag |
+    NSTrackingCursorUpdate |
+    NSTrackingInVisibleRect |
+    NSTrackingAssumeInside |
+    NSTrackingMouseMoved;
+
+    self.trackingArea = [[NSTrackingArea alloc] initWithRect:[self bounds]
+                                                     options:options
+                                                       owner:self
+                                                    userInfo:nil];
+
+    [self addTrackingArea:self.trackingArea];
+    
+    [super updateTrackingAreas];
 }
 
 - (BOOL)canBecomeKeyView {
@@ -245,65 +267,33 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
     return self.width / (float)self.height;
 }
 
-- (void)setMouse {
-    CGPoint p = [self.window convertPointFromScreen:NSEvent.mouseLocation];
+- (void)setMouseXY:(NSEvent*)event {
+    CGPoint p = [self convertPoint:event.locationInWindow fromView:nil];
+    
+    p.y = self.frame.size.height - p.y - 1;
     
     _mouseX = p.x;
-    _mouseY = self.height - p.y - 1;
+    _mouseY = p.y;
 }
 
 - (void)mouseDown:(NSEvent *)event {
     _BUTTON_STATE[0] = YES;
     
-    [self setMouse];
-    
-    _lastX = self.mouseX;
-    _lastY = self.mouseY;
-    _deltaX = 0;
-    _deltaY = 0;
+    [self setMouseXY:event];
 }
 
 - (void)mouseUp:(NSEvent *)event {
     _BUTTON_STATE[0] = NO;
-    _deltaX = 0;
-    _deltaY = 0;
-}
-
-- (void)mouseDragged:(NSEvent *)event {
-    [self setMouse];
-    
-    _deltaX = self.mouseX - _lastX;
-    _deltaY = _lastY - self.mouseY;
-    
-    self.lastX = self.mouseX;
-    self.lastY = self.mouseY;
 }
 
 - (void)rightMouseDown:(NSEvent *)event {
     _BUTTON_STATE[1] = YES;
     
-    [self setMouse];
-    
-    _lastX = self.mouseX;
-    _lastY = self.mouseY;
-    _deltaX = 0;
-    _deltaY = 0;
+    [self setMouseXY:event];
 }
 
 - (void)rightMouseUp:(NSEvent *)event {
     _BUTTON_STATE[1] = NO;
-    _deltaX = 0;
-    _deltaY = 0;
-}
-
-- (void)rightMouseDragged:(NSEvent *)event {
-    [self setMouse];
-    
-    _deltaX = self.mouseX - _lastX;
-    _deltaY = _lastY - self.mouseY;
-    
-    self.lastX = self.mouseX;
-    self.lastY = self.mouseY;
 }
 
 - (void)keyDown:(NSEvent *)event {
@@ -346,6 +336,27 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
     _frameRate = 0;
 }
 
+- (void)mouseMoved:(NSEvent *)event {
+    _deltaX = event.deltaX;
+    _deltaY = event.deltaY;
+    
+    [self setMouseXY:event];
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+    _deltaX = event.deltaX;
+    _deltaY = event.deltaY;
+    
+    [self setMouseXY:event];
+}
+
+- (void)rightMouseDragged:(NSEvent *)event {
+    _deltaX = event.deltaX;
+    _deltaY = event.deltaY;
+    
+    [self setMouseXY:event];
+}
+
 - (void)tick {
     float now = CACurrentMediaTime();
     
@@ -364,6 +375,9 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
         self.seconds = 0;
     }
     
+    if(_fpsMouse) {
+        CGWarpMouseCursorPosition(self.centerPoint);
+    }
     _deltaX = 0;
     _deltaY = 0;
 }
@@ -387,6 +401,36 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
     CFRelease(imageRef);
     CFRelease(imageDest);
     CFRelease(colorSpace);
+}
+
+- (BOOL)fpsMouseEnabled {
+    return _fpsMouse;
+}
+
+- (float)transformY:(float)y {
+    return CGDisplayBounds(CGMainDisplayID()).size.height - y - 1;
+}
+
+- (CGPoint)centerPoint {
+    CGPoint p = NSMakePoint(self.frame.size.width / 2, self.frame.size.height / 2);
+    
+    p = [self.window convertPointToScreen:p];
+    p.y = [self transformY:p.y];
+    
+    return p;
+}
+
+- (void)setFpsMouseEnabled:(BOOL)enabled {
+    _fpsMouse = enabled;
+    if(_fpsMouse) {
+        CGWarpMouseCursorPosition(self.centerPoint);
+        CGDisplayHideCursor(CGMainDisplayID());
+        CGAssociateMouseAndMouseCursorPosition(false);
+        _deltaX = _deltaY = 0;
+    } else {
+        CGDisplayShowCursor(CGMainDisplayID());
+        CGAssociateMouseAndMouseCursorPosition(true);
+    }
 }
 
 - (void)windowWillClose:(id)arg {

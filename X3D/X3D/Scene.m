@@ -213,7 +213,7 @@
 }
 
 - (void)rotate:(MTLView*)view {
-    [self rotateDelta:NSMakePoint(-view.deltaX, -view.deltaY)];
+    [self rotateDelta:NSMakePoint(-view.deltaX, view.deltaY)];
 }
 
 - (void)rotateDelta:(NSPoint)delta {
@@ -225,6 +225,21 @@
     m = Mat4Rotate(delta.y, r);
     _up = Vec3Normalize(Vec3TransformNormal(m, Vec3Cross(r, x)));
     _eye = _target + Vec3TransformNormal(m, x);
+}
+
+- (void)rotateAroundEye:(MTLView*)view {
+    [self rotateAroundEyeDelta:NSMakePoint(-view.deltaX, -view.deltaY)];
+}
+
+- (void)rotateAroundEyeDelta:(NSPoint)delta {
+    Mat4 m = Mat4Rotate(delta.x, Vec3Make(0, 1, 0));
+    Vec3 x = _target - _eye;
+    Vec3 r = Vec3Normalize(Vec3TransformNormal(m, Vec3Cross(x, _up)));
+    
+    x = Vec3TransformNormal(m, x);
+    m = Mat4Rotate(delta.y, r);
+    _up = Vec3Normalize(Vec3TransformNormal(m, Vec3Cross(r, x)));
+    _target = _eye + Vec3Normalize(Vec3TransformNormal(m, x));
 }
 
 @end

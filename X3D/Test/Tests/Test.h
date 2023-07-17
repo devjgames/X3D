@@ -9,7 +9,7 @@
 
 #import "UIConfig.h"
 #import "KeyFrameMeshTest.h"
-#import "Player.h"
+#import "ScenePlayer.h"
 #import "FieldTest.h"
 
 

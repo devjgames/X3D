@@ -63,6 +63,8 @@ void Log(NSString* format, ...);
 - (void)tick;
 - (void)tearDown;
 - (void)saveRGBA:(NSData*)data width:(int)w height:(int)h toPath:(NSString*)path;
+- (BOOL)fpsMouseEnabled;
+- (void)setFpsMouseEnabled:(BOOL)enabled;
 
 @end
 

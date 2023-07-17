@@ -46,14 +46,14 @@
     light = [[Node alloc] init];
     light.isLight = YES;
     light.position = Vec3Make(50, 50, 50);
-    light.lightColor = Vec4Make(4, 2, 0, 1);
+    light.lightColor = Vec4Make(1, 1, 1, 1);
     light.lightRadius = 150;
     [self.scene.root addChild:light];
     
     light = [[Node alloc] init];
     light.isLight = YES;
     light.position = Vec3Make(-50, 50, -50);
-    light.lightColor = Vec4Make(0, 2, 4, 1);
+    light.lightColor = Vec4Make(1, 1, 1, 1);
     light.lightRadius = 150;
     [self.scene.root addChild:light];
     
@@ -128,10 +128,6 @@
         path = [path substringFromIndex:1];
         
         NSString* texturePath = [[path stringByDeletingPathExtension] stringByAppendingPathExtension:@"png"];
-        NSString* weaponPath = [[path stringByDeletingLastPathComponent]
-                                stringByAppendingPathComponent:[NSString stringWithFormat:@"%@-weapon.md2",
-                                                                [[path lastPathComponent] stringByDeletingPathExtension]]];
-        NSString* weaponTexturePath = [[weaponPath stringByDeletingPathExtension] stringByAppendingPathExtension:@"png"];
         
         if(self.mesh) {
             [self.mesh detach];
@@ -139,24 +135,12 @@
         self.mesh = [view.assets load:path];
         self.mesh = [[KeyFrameMesh alloc] initWithKeyFrameMesh:self.mesh];
         self.mesh.basicEncodable.lightingEnabled = YES;
+        self.mesh.basicEncodable.ambientColor = Vec4Make(0.2f, 0.2f, 0.6f, 1);
         self.mesh.rotation = Mat4Rotate(-90, Vec3Make(1, 0, 0));
         [self.mesh setSequenceStart:0 end:39 speed:10 looping:YES];
         
         if([[NSFileManager defaultManager] fileExistsAtPath:[[view.assets.baseURL URLByAppendingPathComponent:texturePath] path]]) {
             self.mesh.basicEncodable.texture = [view.assets load:texturePath];
-        }
-        if([[NSFileManager defaultManager] fileExistsAtPath:[[view.assets.baseURL URLByAppendingPathComponent:weaponPath] path]]) {
-            KeyFrameMesh* weaponMesh = [view.assets load:weaponPath];
-            
-            weaponMesh = [[KeyFrameMesh alloc] initWithKeyFrameMesh:weaponMesh];
-            weaponMesh.basicEncodable.lightingEnabled = YES;
-            
-            if([[NSFileManager defaultManager] fileExistsAtPath:[[view.assets.baseURL URLByAppendingPathComponent:weaponTexturePath] path]]) {
-                weaponMesh.basicEncodable.texture = [view.assets load:weaponTexturePath];
-            }
-            [weaponMesh setSequenceStart:0 end:39 speed:10 looping:YES];
-            
-            [self.mesh addChild:weaponMesh];
         }
         [self.scene.root addChild:self.mesh];
         
@@ -172,24 +156,10 @@
                                   speed:[sequence[3] intValue]
                                 looping:[sequence[4] boolValue]
             ];
-            if(self.mesh.childCount) {
-                KeyFrameMesh* mesh = [self.mesh childAt:0];
-                
-                [mesh setSequenceStart:[sequence[1] intValue]
-                                   end:[sequence[2] intValue]
-                                 speed:[sequence[3] intValue]
-                               looping:[sequence[4] boolValue]
-                ];
-            }
         }
         [view.ui addRow:5];
         if([view.ui button:@"KeyFrameMeshTest.warp.button" gap:0 caption:@"Warp Key Frame Mesh" selected:self.mesh.basicEncodable.warpEnabled]) {
             self.mesh.basicEncodable.warpEnabled = !self.mesh.basicEncodable.warpEnabled;
-            if(self.mesh.childCount) {
-                KeyFrameMesh* weapon = [self.mesh childAt:0];
-                
-                weapon.basicEncodable.warpEnabled = !weapon.basicEncodable.warpEnabled;
-            }
         }
     }
     self.selSequence = -2;

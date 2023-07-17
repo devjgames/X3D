@@ -33,7 +33,7 @@
         [[UIConfig alloc] init],
         [[Editor alloc] init],
         [[KeyFrameMeshTest alloc] init],
-        [[Player alloc] initWithPath:@"assets/scenes/scene1.txt" baseURL:view.assets.baseURL],
+        [[ScenePlayer alloc] initWithPath:@"assets/scenes/scene1.txt" baseURL:view.assets.baseURL],
         [[FieldTest alloc] init]
     ];
     

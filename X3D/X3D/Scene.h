@@ -68,6 +68,8 @@
 - (void)calcTransforms:(float)aspectRatio;
 - (void)rotate:(MTLView*)view;
 - (void)rotateDelta:(NSPoint)delta;
+- (void)rotateAroundEye:(MTLView*)view;
+- (void)rotateAroundEyeDelta:(NSPoint)delta;
 
 @end
 

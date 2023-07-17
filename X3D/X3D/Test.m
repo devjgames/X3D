@@ -66,6 +66,7 @@
             [self setTest:nil];
             
             self.view.currentRenderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.2f, 0.2f, 0.2f, 1);
+            self.view.fpsMouseEnabled = NO;
             
             index = -1;
         }
@@ -249,7 +250,7 @@ static Editor* _INSTANCE = nil;
     self.editor = -1;
     self.mode = 0;
     self.down = NO;
-    self.snap = 0;
+    self.snap = 1;
     self.nodeIndex = -1;
     _sceneURL = nil;
     self.resetNodeEditor = NO;
@@ -466,20 +467,20 @@ static Editor* _INSTANCE = nil;
                 [self.scene.camera rotate:view];
             } else if(self.mode == PAN_XZ) {
                 if(canMoveXZ) {
-                    self.scene.camera.target = self.scene.camera.target + f * view.deltaY + r * view.deltaX;
+                    self.scene.camera.target = self.scene.camera.target - f * view.deltaY + r * view.deltaX;
                     self.scene.camera.eye = self.scene.camera.target + offset;
                 }
             } else if(self.mode == PAN_Y) {
-                self.scene.camera.target = self.scene.camera.target + Vec3Make(0, view.deltaY, 0);
+                self.scene.camera.target = self.scene.camera.target + Vec3Make(0, -view.deltaY, 0);
                 self.scene.camera.eye = self.scene.camera.target + offset;
             } else if(self.selection) {
                 if(self.selection.transform) {
                     if(self.mode == MOV_XZ) {
                         if(canMoveXZ) {
-                            self.selection.transform.position = self.selection.transform.position + f * view.deltaY + r * view.deltaX;
+                            self.selection.transform.position = self.selection.transform.position - f * view.deltaY + r * view.deltaX;
                         }
                     } else if(self.mode == MOV_Y) {
-                        self.selection.transform.position = self.selection.transform.position + Vec3Make(0, view.deltaY, 0);
+                        self.selection.transform.position = self.selection.transform.position + Vec3Make(0, -view.deltaY, 0);
                     } else if(self.mode == ROT_Y) {
                         self.selection.transform.rotation = Mat4Mul(self.selection.transform.rotation, Mat4Rotate(view.deltaX, Vec3Make(0, 1, 0)));
                     }

@@ -1,14 +1,14 @@
 //
-//  SceneNode.m
+//  Map.m
 //  X3DTest
 //
 //  Created by Douglas McNamara on 6/29/23.
 //
 
-#import "SceneNode.h"
-#import "Player.h"
+#import "Map.h"
+#import "ScenePlayer.h"
 
-@interface SceneNode ()
+@interface Map ()
 
 @property NSString* path;
 @property NSMutableArray* meshes;
@@ -26,7 +26,7 @@
 
 @end
 
-@implementation SceneNode
+@implementation Map
 
 - (id)init {
     self = [super init];
@@ -363,7 +363,7 @@
         
         [[[LightMapper alloc] init] map:scene view:view url:[Editor instance].sceneURL rebuild:NO];
     } else {
-        [[[LightMapper alloc] init] map:scene view:view url:[Player instance].url rebuild:NO];
+        [[[LightMapper alloc] init] map:scene view:view url:[ScenePlayer instance].url rebuild:NO];
     }
 }
 
@@ -392,8 +392,6 @@
     
     node = node.lastChild;
     node.basicEncodable.textureSampler = LINEAR_CLAMP_TO_EDGE;
-    
-    ui.scale = Vec3Make(1, 1, 1) * 2;
     
     return ui;
 }

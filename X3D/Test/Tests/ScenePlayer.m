@@ -1,5 +1,5 @@
 //
-//  CollisionTest.m
+//  ScenePlayer.m
 //  X3DTest
 //
 //  Created by Douglas McNamara on 6/13/23.
@@ -7,16 +7,16 @@
 
 #import "Test.h"
 
-static Player* _INSTANCE = nil;
+static ScenePlayer* _INSTANCE = nil;
 
-@interface Player ()
+@interface ScenePlayer ()
 
 @property Scene* scene;
 @property BasicEncodable* text;
 
 @end
 
-@implementation Player;
+@implementation ScenePlayer;
 
 - (id)initWithPath:(NSString *)path baseURL:(NSURL *)baseURL {
     self = [super init];
@@ -103,7 +103,7 @@ static Player* _INSTANCE = nil;
     return name;
 }
 
-+ (Player*)instance {
++ (ScenePlayer*)instance {
     return _INSTANCE;
 }
 
