@@ -28,17 +28,17 @@ FOUNDATION_EXPORT const unsigned char X3DVersionString[];
 #import <X3D/Triangle.h>
 #import <X3D/BoundingBox.h>
 #import <X3D/MTLView.h>
+#import <X3D/Node.h>
+#import <X3D/Camera.h>
+#import <X3D/Light.h>
+#import <X3D/Mesh.h>
+#import <X3D/Scene.h>
+#import <X3D/Sprite.h>
+#import <X3D/Sound.h>
 #import <X3D/UIManager.h>
 #import <X3D/UIButton.h>
 #import <X3D/UIList.h>
 #import <X3D/UITextField.h>
-#import <X3D/Encodable.h>
-#import <X3D/Scene.h>
-#import <X3D/KeyFrameMesh.h>
-#import <X3D/Mesh.h>
-#import <X3D/ParticleSystem.h>
-#import <X3D/LightMapper.h>
-#import <X3D/Sound.h>
 #import <X3D/Test.h>
 
 

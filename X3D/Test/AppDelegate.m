@@ -23,18 +23,11 @@
     [NSApp activateIgnoringOtherApps:YES];
     
     MTLView* view = [[MTLView alloc] initWithView:self.window.contentView device:MTLCreateSystemDefaultDevice()];
-    NSURL* url = [[NSFileManager defaultManager] URLsForDirectory:NSDesktopDirectory inDomains:NSUserDomainMask][0];
-    
-    url = [url URLByAppendingPathComponent:@"XCode/X3DTest/X3DTest"];
-    
-    view.assets.baseURL = url;
-    
+
     NSArray<Test*>* tests = @[
-        [[UIConfig alloc] init],
-        [[Editor alloc] init],
-        [[KeyFrameMeshTest alloc] init],
-        [[ScenePlayer alloc] initWithPath:@"assets/scenes/scene1.txt" baseURL:view.assets.baseURL],
-        [[FieldTest alloc] init]
+        [[HelloWorld alloc] init],
+        [[Plot alloc] init],
+        [[Map alloc] initWithPath:@"assets/maps/map1.obj" position:Vec3Make(0, 64, 0) direction:Vec2Make(1, -1) ambientColor:Vec4Make(0.7f, 0.7f, 0.7f, 1)]
     ];
     
     self.framework = [[TestFramework alloc] initWithWindow:self.window view:view tests:tests];

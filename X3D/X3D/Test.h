@@ -8,7 +8,7 @@
 @interface Test : XObject
 
 - (void)setup:(MTLView*)view;
-- (BOOL)nextFrame:(MTLView*)view;
+- (void)nextFrame:(MTLView*)view;
 - (void)tearDown;
 
 @end
@@ -20,10 +20,3 @@
 
 @end
 
-@interface Editor : Test
-
-@property (readonly) NSURL* sceneURL;
-
-+ (Editor*)instance;
-
-@end

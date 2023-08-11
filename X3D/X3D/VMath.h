@@ -49,5 +49,5 @@ Mat4 Mat4Rotate(float degrees, Vec3 axis);
 Mat4 Mat4Scale(Vec3 s);
 Mat4 Mat4Ortho(float l, float r, float b, float t, float zn, float zf);
 Mat4 Mat4Perspective(float fovDegrees, float aspectRatio, float zn, float zf);
-Mat4 Mat4LookAt(Vec3 eye, Vec3 target, Vec3 up);
+Mat4 Mat4Look(Vec3 direction, Vec3 up);
 

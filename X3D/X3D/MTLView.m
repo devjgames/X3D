@@ -101,9 +101,8 @@ void Log(NSString* format, ...) {
         
         [self registerAssetLoader:[[TextureLoader alloc] initWithView:self.view] forExtension:@"png"];
         [self registerAssetLoader:[[TextureLoader alloc] initWithView:self.view] forExtension:@"jpg"];
-        [self registerAssetLoader:[[KeyFrameMeshLoader alloc] init] forExtension:@"md2"];
         [self registerAssetLoader:[[SoundLoader alloc] init] forExtension:@"wav"];
-        [self registerAssetLoader:[[MeshLoader alloc] init] forExtension:@"obj"];
+        [self registerAssetLoader:[[NodeLoader alloc] init] forExtension:@"obj"];
     }
     return self;
 }

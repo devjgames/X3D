@@ -199,17 +199,17 @@ Mat4 Mat4Perspective(float fovDegrees, float aspectRatio, float zn, float zf) {
                     );
 }
 
-Mat4 Mat4LookAt(Vec3 eye, Vec3 target, Vec3 up) {
+Mat4 Mat4Look(Vec3 direction, Vec3 up) {
     static Vec3 f, u, r;
     
-    f = simd_normalize(target - eye);
+    f = simd_normalize(direction);
     u = simd_normalize(up);
     r = simd_normalize(simd_cross(f, u));
     u = simd_normalize(simd_cross(r, f));
     f = -f;
-    return Mat4Make(r.x, r.y, r.z, -simd_dot(eye, r),
-                    u.x, u.y, u.z, -simd_dot(eye, u),
-                    f.x, f.y, f.z, -simd_dot(eye, f),
+    return Mat4Make(r.x, r.y, r.z, 0,
+                    u.x, u.y, u.z, 0,
+                    f.x, f.y, f.z, 0,
                     0, 0, 0, 1
                     );
 }

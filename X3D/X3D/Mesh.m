@@ -2,74 +2,63 @@
 //  Mesh.m
 //  X3D
 //
-//  Created by Douglas McNamara on 5/18/23.
+//  Created by Douglas McNamara on 8/10/23.
 //
 
 #import <X3D/X3D.h>
 
 @interface Mesh ()
 
-@property (weak) MTLView* view;
+@property MTLView* view;
+@property id<MTLBuffer> vertexBuffer;
+@property id<MTLBuffer> indexBuffer;
+@property id<MTLDepthStencilState> depthStencilState;
+@property id<MTLRenderPipelineState> renderPipelineState;
 @property NSMutableData* vertices;
 @property NSMutableData* indices;
-@property NSMutableArray<NSArray<NSNumber*>*>* faces;
+
+- (id<MTLBuffer>)buffer:(id<MTLBuffer>)buffer data:(NSMutableData*)data;
 
 @end
 
 @implementation Mesh
 
-- (id)initWithView:(MTLView *)view {
+- (id)initWithView:(MTLView*)view {
     self = [super init];
     if(self) {
+        self.color = Vec4Make(1, 1, 1, 1);
+        self.texture = nil;
+        self.textureLinear = NO;
+        self.depthWriteEnabled = YES;
+        self.depthTestEnabled = YES;
+        self.blendEnabled = NO;
+        self.additiveBlend = NO;
+        self.cullEnabled = YES;
+        self.cullBack = YES;
+        
         self.view = view;
-        self.vertices = [NSMutableData dataWithCapacity:sizeof(BasicVertex)];
-        self.indices = [NSMutableData dataWithCapacity:4];
-        self.faces = [NSMutableArray arrayWithCapacity:1];
-        self.encodable = [[BasicEncodable alloc] initWithView:view vertexCount:1];
-        self.castsShadow = NO;
-        self.receivesShadow = YES;
-        self.lightMapEnabled = NO;
-        self.aoEnabled = YES;
+        self.vertexBuffer = nil;
+        self.indexBuffer = nil;
+        
+        [self createDepthStencilState];
+        [self createRenderPipelineState];
+        
+        self.vertices = [NSMutableData dataWithCapacity:90 * sizeof(Vertex)];
+        self.indices = [NSMutableData dataWithCapacity:90 * 4];
     }
     return self;
 }
 
-- (int)triangleCount {
-    return self.indexCount / 3;
-}
-
-- (Triangle)triangleAt:(int)i {
-    static Triangle triangle;
-    
-    i *= 3;
-    
-    int i1 = [self indexAt:i++];
-    int i2 = [self indexAt:i++];
-    int i3 = [self indexAt:i++];
-    Vec3 p1 = [self vertexAt:i1].position;
-    Vec3 p2 = [self vertexAt:i2].position;
-    Vec3 p3 = [self vertexAt:i3].position;
-    
-    p1 = Vec3Transform(self.model, p1);
-    p2 = Vec3Transform(self.model, p2);
-    p3 = Vec3Transform(self.model, p3);
-    
-    triangle = TriangleMake(p1, p2, p3);
-    triangle.tag = self.triangleTag;
-    
-    return triangle;
-}
-
 - (int)vertexCount {
-    return (int)(self.vertices.length / sizeof(BasicVertex));
+    return (int)(self.vertices.length / sizeof(Vertex));
 }
 
-- (BasicVertex)vertexAt:(int)i {
-    return ((BasicVertex*)self.vertices.mutableBytes)[i];
+- (Vertex)vertexAt:(int)i {
+    return ((Vertex*)self.vertices.mutableBytes)[i];
 }
 
-- (void)setVertex:(BasicVertex)vertex at:(int)i {
-    ((BasicVertex*)self.vertices.mutableBytes)[i] = vertex;
+- (void)setVertex:(Vertex)v at:(int)i {
+    ((Vertex*)self.vertices.mutableBytes)[i] = v;
 }
 
 - (int)indexCount {
@@ -80,148 +69,233 @@
     return ((int*)self.indices.mutableBytes)[i];
 }
 
-- (int)faceCount {
-    return (int)self.faces.count;
+- (void)clearVertices {
+    self.vertices.length = 0;
 }
 
-- (int)faceVertexCountAt:(int)i {
-    return (int)[[self.faces objectAtIndex:i] count];
+- (void)pushVertex:(Vertex)v {
+    [self.vertices appendBytes:&v length:sizeof(Vertex)];
 }
 
-- (int)face:(int)i vertexAt:(int)j {
-    return (int)[[[self.faces objectAtIndex:i] objectAtIndex:j] intValue];
-}
-
-- (void)pushVertex:(BasicVertex)vertex {
-    [self.vertices appendBytes:&vertex length:sizeof(BasicVertex)];
-}
-
-- (void)pushFace:(NSArray<NSNumber*>*)indices swapWinding:(BOOL)swap {
-    int tris = (int)indices.count - 2;
-    
-    if(swap) {
-        NSMutableArray* temp = [NSMutableArray arrayWithCapacity:indices.count];
+- (void)calcNormals {
+    for(int i = 0; i != self.vertexCount; i++) {
+        Vertex v = [self vertexAt:i];
         
-        for(int i = (int)indices.count - 1; i != -1; i--) {
-            [temp addObject:indices[i]];
-        }
-        indices = temp;
+        v.normal = Vec3Make(0, 0, 0);
+        
+        [self setVertex:v at:i];
     }
     
+    for(int i = 0; i != self.indexCount; ) {
+        Vertex v1 = [self vertexAt:[self indexAt:i + 0]];
+        Vertex v2 = [self vertexAt:[self indexAt:i + 1]];
+        Vertex v3 = [self vertexAt:[self indexAt:i + 2]];
+        Vec3 normal = Vec3Normalize(Vec3Cross(v3.position - v2.position, v2.position - v1.position));
+        
+        v1.normal += normal;
+        v2.normal += normal;
+        v3.normal += normal;
+        
+        [self setVertex:v1 at:[self indexAt:i++]];
+        [self setVertex:v2 at:[self indexAt:i++]];
+        [self setVertex:v3 at:[self indexAt:i++]];
+    }
+    
+    for(int i = 0; i != self.vertexCount; i++) {
+        Vertex v = [self vertexAt:i];
+        
+        v.normal = Vec3Normalize(v.normal);
+        
+        [self setVertex:v at:i];
+    }
+}
+
+- (void)clearFaces {
+    self.indices.length = 0;
+}
+
+- (void)pushFace:(NSArray<NSNumber*>*)indices {
+    int tris = (int)indices.count - 2;
+    
     for(int i = 0; i != tris; i++) {
-        int i1 = [[indices objectAtIndex:0] intValue];
-        int i2 = [[indices objectAtIndex:i + 1] intValue];
-        int i3 = [[indices objectAtIndex:i + 2] intValue];
+        int i1 = indices[0].intValue;
+        int i2 = indices[i + 1].intValue;
+        int i3 = indices[i + 2].intValue;
         
         [self.indices appendBytes:&i1 length:4];
         [self.indices appendBytes:&i2 length:4];
         [self.indices appendBytes:&i3 length:4];
     }
-    [self.faces addObject:[NSArray arrayWithArray:indices]];
 }
 
-- (void)pushBox:(Vec3)size position:(Vec3)position rotation:(Vec3)rotation invert:(BOOL)invert {
-    Vec3 s = size / 2;
-    float d = (invert) ? -1 : 1;
-
-    [self pushVertex:Vertex(-s.x, -s.y, -s.z, 1, 1, 0, 0, 0, 0, -1 * d, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, -s.y, -s.z, 0, 1, 0, 0, 0, 0, -1 * d, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, +s.y, -s.z, 0, 0, 0, 0, 0, 0, -1 * d, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(-s.x, +s.y, -s.z, 1, 0, 0, 0, 0, 0, -1 * d, 1, 1, 1, 1)];
-    [self pushFace:@[ @(0), @(1), @(2), @(3) ] swapWinding:invert];
-    
-    [self pushVertex:Vertex(-s.x, -s.y, +s.z, 0, 1, 0, 0, 0, 0, +1 * d, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, -s.y, +s.z, 1, 1, 0, 0, 0, 0, +1 * d, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, +s.y, +s.z, 1, 0, 0, 0, 0, 0, +1 * d, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(-s.x, +s.y, +s.z, 0, 0, 0, 0, 0, 0, +1 * d, 1, 1, 1, 1)];
-    [self pushFace:@[ @(7), @(6), @(5), @(4) ] swapWinding:invert];
-    
-    [self pushVertex:Vertex(-s.x, -s.y, -s.z, 0, 1, 0, 0, -1 * d, 0, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(-s.x, +s.y, -s.z, 0, 0, 0, 0, -1 * d, 0, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(-s.x, +s.y, +s.z, 1, 0, 0, 0, -1 * d, 0, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(-s.x, -s.y, +s.z, 1, 1, 0, 0, -1 * d, 0, 0, 1, 1, 1, 1)];
-    [self pushFace:@[ @(8), @(9), @(10), @(11) ] swapWinding:invert];
-    
-    [self pushVertex:Vertex(+s.x, -s.y, -s.z, 1, 1, 0, 0, +1 * d, 0, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, +s.y, -s.z, 1, 0, 0, 0, +1 * d, 0, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, +s.y, +s.z, 0, 0, 0, 0, +1 * d, 0, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, -s.y, +s.z, 0, 1, 0, 0, +1 * d, 0, 0, 1, 1, 1, 1)];
-    [self pushFace:@[ @(15), @(14), @(13), @(12) ] swapWinding:invert];
-    
-    [self pushVertex:Vertex(-s.x, -s.y, -s.z, 0, 1, 0, 0, 0, -1 * d, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(-s.x, -s.y, +s.z, 0, 0, 0, 0, 0, -1 * d, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, -s.y, +s.z, 1, 0, 0, 0, 0, -1 * d, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, -s.y, -s.z, 1, 1, 0, 0, 0, -1 * d, 0, 1, 1, 1, 1)];
-    [self pushFace:@[ @(16), @(17), @(18), @(19) ] swapWinding:invert];
-    
-    [self pushVertex:Vertex(-s.x, +s.y, -s.z, 0, 0, 0, 0, 0, +1 * d, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(-s.x, +s.y, +s.z, 0, 1, 0, 0, 0, +1 * d, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, +s.y, +s.z, 1, 1, 0, 0, 0, +1 * d, 0, 1, 1, 1, 1)];
-    [self pushVertex:Vertex(+s.x, +s.y, -s.z, 1, 0, 0, 0, 0, +1 * d, 0, 1, 1, 1, 1)];
-    [self pushFace:@[ @(23), @(22), @(21), @(20) ] swapWinding:invert];
-    
-    Mat4 m = Mat4Mul(Mat4Rotate(rotation.x, Vec3Make(1, 0, 0)),
-                     Mat4Mul(Mat4Rotate(rotation.y, Vec3Make(0, 1, 0)),
-                             Mat4Rotate(rotation.z, Vec3Make(0, 0, 1))
-                             )
-                     );
-    
-    m = Mat4Mul(Mat4Translate(position), m);
-    
-    Mat4 it = Mat4Transpose(Mat4Invert(m));
-    
-    for(int i = 0; i != self.vertexCount; i++) {
-        BasicVertex v = [self vertexAt:i];
-        
-        v.position = Vec3Transform(m, v.position);
-        v.normal = Vec3Normalize(Vec3TransformNormal(it, v.normal));
-        
-        [self setVertex:v at:i];
-    }
-}
-
-- (void)calcTextureCoordinates:(float)units {
-    for(int i = 0; i != self.vertexCount; i++) {
-        BasicVertex v = [self vertexAt:i];
-        float x = fabsf(v.normal.x);
-        float y = fabsf(v.normal.y);
-        float z = fabsf(v.normal.z);
-        
-        if(x >= y && x >= z) {
-            v.textureCoordinate = Vec2Make(v.position.z, v.position.y) / units;
-        } else if(y >= x && y >= z) {
-            v.textureCoordinate = Vec2Make(v.position.x, v.position.z) / units;
-        } else {
-            v.textureCoordinate = Vec2Make(v.position.x, v.position.y) / units;
+- (id<MTLBuffer>)buffer:(id<MTLBuffer>)buffer data:(NSMutableData*)data {
+    if(data.length) {
+        if(buffer) {
+            if(data.length <= buffer.length) {
+                memmove(buffer.contents, data.mutableBytes, data.length);
+                [buffer didModifyRange:NSMakeRange(0, data.length)];
+                
+                id<MTLCommandBuffer> commandBuffer = [self.view.commandQueue commandBuffer];
+                id<MTLBlitCommandEncoder> encoder = [commandBuffer blitCommandEncoder];
+                
+                [encoder synchronizeResource:buffer];
+                [encoder endEncoding];
+                [commandBuffer commit];
+                [commandBuffer waitUntilCompleted];
+                
+                return buffer;
+            }
         }
-        [self setVertex:v at:i];
+        Log(@"Creating mesh buffer ...");
+        
+        buffer = [self.view.device newBufferWithBytes:data.mutableBytes length:data.length options:MTLResourceStorageModeManaged];
     }
+    return buffer;
 }
 
 - (void)bufferVertices {
-    [self.basicEncodable clear];
-    for(int i = 0; i != self.indexCount; i++) {
-        [self.basicEncodable pushVertex:[self vertexAt:[self indexAt:i]]];
+    self.vertexBuffer = [self buffer:self.vertexBuffer data:self.vertices];
+}
+
+- (void)bufferIndices {
+    self.indexBuffer = [self buffer:self.indexBuffer data:self.indices];
+}
+
+- (void)createDepthStencilState {
+    
+    Log(@"Creating mesh depth stencil state ...");
+    
+    MTLDepthStencilDescriptor* descriptor = [[MTLDepthStencilDescriptor alloc] init];
+    
+    descriptor.depthWriteEnabled = self.depthWriteEnabled;
+    descriptor.depthCompareFunction = (self.depthTestEnabled) ? MTLCompareFunctionLess : MTLCompareFunctionAlways;
+    
+    self.depthStencilState = [self.view.device newDepthStencilStateWithDescriptor:descriptor];
+}
+
+- (void)createRenderPipelineState {
+    Log(@"Creating mesh render pipeline state ...");
+    
+    MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
+    
+    descriptor.vertexFunction = [self.view.library newFunctionWithName:@"lightVertexShader"];
+    descriptor.fragmentFunction = [self.view.library newFunctionWithName:@"lightFragmentShader"];
+    descriptor.depthAttachmentPixelFormat = self.view.depthStencilPixelFormat;
+    descriptor.colorAttachments[0].pixelFormat = self.view.colorPixelFormat;
+    descriptor.colorAttachments[0].blendingEnabled = self.blendEnabled;
+    if(self.blendEnabled) {
+        descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
+        descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+        if(self.additiveBlend) {
+            descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorOne;
+            descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
+            descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
+            descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
+        } else {
+            descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+            descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
+            descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+            descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+        }
     }
-    [self.basicEncodable bufferVertices];
+    
+    NSError* error = nil;
+    
+    self.renderPipelineState = [self.view.device newRenderPipelineStateWithDescriptor:descriptor error:&error];
+    
+    if(error) {
+        Log(@"%@", error.description);
+    }
+}
+
+- (BOOL)isEncodable {
+    return YES;
+}
+
+- (void)encodeWithEncoder:(id<MTLRenderCommandEncoder>)encoder camera:(Camera *)camera lights:(NSArray<Light *> *)lights {
+    static VertexData vertexData;
+    static FragmentData fragmentData;
+    
+    if(self.indexCount == 0 || self.vertexCount == 0 || self.vertexBuffer == nil || self.indexBuffer == nil) {
+        return;
+    }
+    
+    vertexData.projection = camera.projection;
+    vertexData.view = camera.model;
+    vertexData.model = self.model;
+    vertexData.modelIT = Mat4Transpose(Mat4Invert(self.model));
+    vertexData.color = self.color;
+    vertexData.lightCount = (UInt8)MIN(MAX_LIGHTS, lights.count);
+    
+    for(int i = 0; i != vertexData.lightCount; i++) {
+        Light* light = lights[i];
+        
+        vertexData.lights[i].color = light.color;
+        
+        if([light isKindOfClass:AmbientLight.class]) {
+            vertexData.lights[i].type = AMBIENT_LIGHT;
+            
+        } else if([light isKindOfClass:DirectionalLight.class]) {
+            vertexData.lights[i].type = DIRECTIONAL_LIGHT;
+            vertexData.lights[i].vector = ((DirectionalLight*)light).lightDirection;
+            
+        } else {
+            vertexData.lights[i].type = POINT_LIGHT;
+            vertexData.lights[i].vector = light.absolutePosition;
+            vertexData.lights[i].range = ((PointLight*)light).range;
+        }
+    }
+    
+    fragmentData.textureEnabled = (UInt8)((self.texture) ? 1 : 0);
+    fragmentData.linear = (UInt8)((self.textureLinear) ? 1 : 0);
+    
+    if(self.cullEnabled) {
+        if(self.cullBack) {
+            [encoder setCullMode:MTLCullModeBack];
+        } else {
+            [encoder setCullMode:MTLCullModeFront];
+        }
+    } else {
+        [encoder setCullMode:MTLCullModeNone];
+    }
+    [encoder setDepthStencilState:self.depthStencilState];
+    [encoder setRenderPipelineState:self.renderPipelineState];
+    [encoder setVertexBuffer:self.vertexBuffer offset:0 atIndex:0];
+    [encoder setVertexBytes:&vertexData length:sizeof(VertexData) atIndex:1];
+    
+    if(self.texture) {
+        [encoder setFragmentTexture:self.texture atIndex:0];
+    }
+    
+    [encoder setFragmentBytes:&fragmentData length:sizeof(FragmentData) atIndex:0];
+    
+    [encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                        indexCount:self.indexCount
+                         indexType:MTLIndexTypeUInt32
+                       indexBuffer:self.indexBuffer
+                 indexBufferOffset:0
+    ];
 }
 
 @end
 
-@implementation MeshLoader
 
-- (id)init {
-    self = [super init];
-    if(self) {
-        self.center = YES;
-    }
-    return self;
-}
+@implementation NodeLoader
 
 - (id)load:(NSURL *)url assets:(AssetManager *)assets {
-    NSArray<NSString*>* lines = [Parser split:[NSString stringWithContentsOfURL:url encoding:NSASCIIStringEncoding error:nil] delims:[NSCharacterSet newlineCharacterSet]];
-    Node* node = [[Node alloc] init];
-    NSMutableDictionary<NSString*, id<MTLTexture>>* textures = [NSMutableDictionary dictionaryWithCapacity:16];
+    NSURL* baseURL = [NSURL fileURLWithPath:[url URLByDeletingLastPathComponent].path];
+    NSString* basePath = [baseURL.path stringByReplacingOccurrencesOfString:assets.baseURL.path withString:@""];
+    
+    if([basePath characterAtIndex:basePath.length - 1] == '/') {
+        basePath = [basePath substringToIndex:basePath.length - 1];
+    }
+    Log(@"NodeLoader base path = '%@'", basePath);
+    
+    NSArray* lines = [Parser split:[NSString stringWithContentsOfURL:url encoding:NSASCIIStringEncoding error:nil] delims:[NSCharacterSet newlineCharacterSet]];
+    Node* root = [[Node alloc] init];
+    NSMutableDictionary<NSString*, Mesh*>* meshes = [NSMutableDictionary dictionaryWithCapacity:32];
+    NSMutableDictionary<NSString*, id<MTLTexture>>* textures = [NSMutableDictionary dictionaryWithCapacity:8];
+    Mesh* mesh = nil;
     NSMutableData* vList = [NSMutableData dataWithCapacity:100 * sizeof(Vec3)];
     NSMutableData* tList = [NSMutableData dataWithCapacity:100 * sizeof(Vec2)];
     NSMutableData* nList = [NSMutableData dataWithCapacity:100 * sizeof(Vec3)];
@@ -231,139 +305,85 @@
         NSArray<NSString*>* tokens = [Parser split:tLine delims:[NSCharacterSet whitespaceCharacterSet]];
         
         if([tLine hasPrefix:@"mtllib "]) {
-            NSString* fName = [url.lastPathComponent stringByDeletingPathExtension];
-            NSURL* mURL = [[url URLByDeletingLastPathComponent] URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.mtl", fName]];
-            NSArray<NSString*>* mLines = [Parser split:[NSString stringWithContentsOfURL:mURL encoding:NSASCIIStringEncoding error:nil] delims:[NSCharacterSet newlineCharacterSet]];
-            NSString* mName = nil;
+            NSString* name = [[tLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSURL* mtlURL = [baseURL URLByAppendingPathComponent:[NSString stringWithFormat:@"%@", name]];
+            NSArray* mLines = [Parser split:[NSString stringWithContentsOfURL:mtlURL encoding:NSASCIIStringEncoding error:nil] delims:[NSCharacterSet newlineCharacterSet]];
             
+            name = nil;
             for(NSString* mLine in mLines) {
-                NSString* mtLine = [mLine stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                NSString* tMLine = [mLine stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
                 
-                if([mtLine hasPrefix:@"newmtl "]) {
-                    mName = [[mtLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-                } else if([mtLine hasPrefix:@"map_Kd "]) {
-                    NSString* texName = [[mtLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-                    NSString* texPath = [[[url URLByDeletingLastPathComponent] URLByAppendingPathComponent:texName] path];
+                if([tMLine hasPrefix:@"newmtl "]) {
+                    name = [[tMLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                } else if([tMLine hasPrefix:@"map_Kd "]) {
+                    NSString* tex = [[tMLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
                     
-                    texPath = [texPath stringByReplacingOccurrencesOfString:assets.baseURL.path withString:@""];
-                    texPath = [texPath substringFromIndex:1];
-                
-                    [textures setObject:[assets load:texPath] forKey:mName];
+                    [textures setObject:[assets load:[NSString stringWithFormat:@"%@/%@", basePath, tex]] forKey:name];
                 }
             }
-        } else if([tLine hasPrefix:@"o "]) {
-            NSString* name = [[tLine substringFromIndex:1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-            Node* child = [[Node alloc] init];
-            
-            child.name = name;
-
-            [node addChild:child];
         } else if([tLine hasPrefix:@"usemtl "]) {
-            NSString* key = [[tLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-            Mesh* mesh = [[Mesh alloc] initWithView:assets.view];
+            NSString* name = [[tLine substringFromIndex:6] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSString* key = @"";
+            id<MTLTexture> texture = [textures objectForKey:name];
             
-            mesh.basicEncodable.texture = [textures objectForKey:key];
-            
-            if(node.childCount == 0) {
-                [node addChild:[[Node alloc] init]];
+            if(texture) {
+                key = [texture.label.lastPathComponent stringByDeletingPathExtension];
             }
             
-            Node* child = node.lastChild;
+            mesh = [meshes objectForKey:key];
             
-            [child addChild:mesh];
+            if(mesh == nil) {
+                mesh = [[Mesh alloc] initWithView:assets.view];
+                mesh.texture = texture;
+                
+                [root addChild:mesh];
+                [meshes setObject:mesh forKey:key];
+            }
         } else if([tLine hasPrefix:@"v "]) {
-            Vec3 v = Vec3Make([tokens[1] floatValue], [tokens[2] floatValue], [tokens[3] floatValue]);
+            Vec3 v = { tokens[1].floatValue, tokens[2].floatValue, tokens[3].floatValue };
             
             [vList appendBytes:&v length:sizeof(Vec3)];
         } else if([tLine hasPrefix:@"vt "]) {
-            Vec2 v = Vec2Make([tokens[1] floatValue], 1 - [tokens[2] floatValue]);
+            Vec2 v = { tokens[1].floatValue, 1 - tokens[2].floatValue};
             
             [tList appendBytes:&v length:sizeof(Vec2)];
         } else if([tLine hasPrefix:@"vn "]) {
-            Vec3 v = Vec3Make([tokens[1] floatValue], [tokens[2] floatValue], [tokens[3] floatValue]);
+            Vec3 v = { tokens[1].floatValue, tokens[2].floatValue, tokens[3].floatValue };
             
             [nList appendBytes:&v length:sizeof(Vec3)];
         } else if([tLine hasPrefix:@"f "]) {
-            if(node.childCount == 0) {
-                [node addChild:[[Node alloc] init]];
+            if(mesh == nil) {
+                mesh = [[Mesh alloc] initWithView:assets.view];
+                
+                [root addChild:mesh];
+                [meshes setObject:mesh forKey:@""];
             }
             
-            Node* child = node.lastChild;
-            
-            if(child.childCount == 0) {
-                [child addChild:[[Mesh alloc] initWithView:assets.view]];
-            }
-            
-            Mesh* mesh = child.lastChild;
-            
-            if(mesh.basicEncodable.texture) {
-                mesh.name = [mesh.basicEncodable.texture.label.lastPathComponent stringByDeletingPathExtension];
-            }
-            
-            int b = mesh.vertexCount;
+            int baseVertex = mesh.vertexCount;
             NSMutableArray<NSNumber*>* indices = [NSMutableArray arrayWithCapacity:tokens.count - 1];
             
             for(int i = 1; i != (int)tokens.count; i++) {
                 NSArray<NSString*>* iTokens = [Parser split:tokens[i] delims:[NSCharacterSet characterSetWithCharactersInString:@"/"]];
-                int vi = [iTokens[0] intValue] - 1;
-                int ti = [iTokens[1] intValue] - 1;
-                int ni = [iTokens[2] intValue] - 1;
-                BasicVertex v;
+                Vertex v;
                 
-                v.position = ((Vec3*)vList.mutableBytes)[vi];
-                v.textureCoordinate = ((Vec2*)tList.mutableBytes)[ti];
-                v.normal = ((Vec3*)nList.mutableBytes)[ni];
-                v.color = Vec4Make(1, 1, 1, 1);
-                v.textureCoordinate2 = Vec2Make(0, 0);
+                v.position = ((Vec3*)vList.mutableBytes)[iTokens[0].intValue - 1];
+                v.textureCoordinate = ((Vec2*)tList.mutableBytes)[iTokens[1].intValue - 1];
+                v.normal = ((Vec3*)nList.mutableBytes)[iTokens[2].intValue - 1];
                 
                 [mesh pushVertex:v];
-                [indices addObject:@(i - 1 + b)];
-            }
-            [mesh pushFace:indices swapWinding:YES];
-        }
-    }
-    for(int i = 0; i != node.childCount; i++) {
-        Node* child = [node childAt:i];
-        BoundingBox bounds = BoundingBoxEmpty();
-        
-        if(self.center) {
-            for(int j = 0; j != child.childCount; j++) {
-                Mesh* mesh = [child childAt:j];
                 
-                for(int k = 0; k != mesh.vertexCount; k++) {
-                    BasicVertex v = [mesh vertexAt:k];
-                    
-                    bounds = BoundingBoxAddPoint(bounds, v.position);
-                }
+                [indices insertObject:@(baseVertex + i - 1) atIndex:0];
             }
-        }
-        
-        Vec3 center = BoundingBoxCalcCenter(bounds);
-        
-        for(int j = 0; j != child.childCount; j++) {
-            Mesh* mesh = [child childAt:j];
-            
-            if(self.center) {
-                for(int k = 0; k != mesh.vertexCount; k++) {
-                    BasicVertex v = [mesh vertexAt:k];
-                    
-                    v.position = v.position - center;
-                    
-                    [mesh setVertex:v at:k];
-                }
-            }
-            [mesh bufferVertices];
-        }
-        
-        if(self.center) {
-            child.position = center;
+            [mesh pushFace:indices];
         }
     }
-    return node;
+    for(int i = 0; i != root.childCount; i++) {
+        Mesh* mesh = [root childAt:i];
+        
+        [mesh bufferIndices];
+        [mesh bufferVertices];
+    }
+    return root;
 }
 
 @end
-
-
-
-

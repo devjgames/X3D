@@ -2,36 +2,74 @@
 //  Mesh.h
 //  X3D
 //
-//  Created by Douglas McNamara on 5/18/23.
+//  Created by Douglas McNamara on 8/10/23.
 //
+
+#define MAX_LIGHTS 16
+
+#define AMBIENT_LIGHT 0
+#define DIRECTIONAL_LIGHT 1
+#define POINT_LIGHT 2
+
+typedef struct Vertex {
+    Vec3 position;
+    Vec2 textureCoordinate;
+    Vec3 normal;
+} Vertex;
+
+typedef struct LightData {
+    UInt8 type;
+    Vec3 vector;
+    Vec4 color;
+    float range;
+} LightData;
+
+typedef struct VertexData {
+    Mat4 projection;
+    Mat4 view;
+    Mat4 model;
+    Mat4 modelIT;
+    Vec4 color;
+    UInt8 lightCount;
+    LightData lights[MAX_LIGHTS];
+} VertexData;
+
+typedef struct FragmentData {
+    UInt8 textureEnabled;
+    UInt8 linear;
+} FragmentData;
 
 @interface Mesh : Node
 
-@property BOOL castsShadow;
-@property BOOL receivesShadow;
-@property BOOL lightMapEnabled;
-@property BOOL aoEnabled;
+@property Vec4 color;
+@property id<MTLTexture> texture;
+@property BOOL textureLinear;
+@property BOOL depthWriteEnabled;
+@property BOOL depthTestEnabled;
+@property BOOL blendEnabled;
+@property BOOL additiveBlend;
+@property BOOL cullEnabled;
+@property BOOL cullBack;
 
 - (id)initWithView:(MTLView*)view;
 - (int)vertexCount;
-- (BasicVertex)vertexAt:(int)i;
-- (void)setVertex:(BasicVertex)vertex at:(int)i;
+- (Vertex)vertexAt:(int)i;
+- (void)setVertex:(Vertex)v at:(int)i;
 - (int)indexCount;
 - (int)indexAt:(int)i;
-- (int)faceCount;
-- (int)faceVertexCountAt:(int)i;
-- (int)face:(int)i vertexAt:(int)j;
-- (void)pushVertex:(BasicVertex)vertex;
-- (void)pushFace:(NSArray<NSNumber*>*)indices swapWinding:(BOOL)swap;
-- (void)pushBox:(Vec3)size position:(Vec3)position rotation:(Vec3)rotation invert:(BOOL)invert;
-- (void)calcTextureCoordinates:(float)units;
+- (void)clearVertices;
+- (void)pushVertex:(Vertex)v;
+- (void)calcNormals;
+- (void)clearFaces;
+- (void)pushFace:(NSArray<NSNumber*>*)indices;
 - (void)bufferVertices;
+- (void)bufferIndices;
+- (void)createDepthStencilState;
+- (void)createRenderPipelineState;
 
 @end
 
-@interface MeshLoader : AssetLoader
-
-@property BOOL center;
+@interface NodeLoader : AssetLoader
 
 @end
 
