@@ -39,6 +39,5 @@ FOUNDATION_EXPORT const unsigned char X3DVersionString[];
 #import <X3D/UIButton.h>
 #import <X3D/UIList.h>
 #import <X3D/UITextField.h>
-#import <X3D/Test.h>
 
 

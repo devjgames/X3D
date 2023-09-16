@@ -203,8 +203,6 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
         view.window.contentView = contentView;
         view = contentView;
         
-        _ui = [[UIManager alloc] initWithWindow:view.window];
-        
         [view addSubview:self];
         [self becomeFirstResponder];
         [self resetTimer];
@@ -383,7 +381,6 @@ static BOOL _BUTTON_STATE[] = { NO, NO };
 
 - (void)tearDown {
     _assets = nil;
-    _ui = nil;
 }
 
 - (void)saveRGBA:(NSData *)data width:(int)w height:(int)h toPath:(NSString *)path {

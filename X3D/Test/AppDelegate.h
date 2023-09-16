@@ -5,9 +5,9 @@
 //  Created by Douglas McNamara on 5/15/23.
 //
 
-#import <Cocoa/Cocoa.h>
+#import "Test.h"
 
-@interface AppDelegate : NSObject <NSApplicationDelegate>
+@interface AppDelegate : NSObject <NSApplicationDelegate, MTKViewDelegate>
 
 
 @end

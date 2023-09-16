@@ -41,6 +41,7 @@
 
 @property Scene* scene;
 @property Sprite* sprite;
+@property Light* light;
 
 @end
 
@@ -58,11 +59,10 @@
     
     [camera activate];
     
-    Light* light = [[AmbientLight alloc] init];
+    self.light = [[AmbientLight alloc] init];
+    self.light.color = Vec4Make(0.5f, 0.5f, 0.5f, 1);
     
-    light.color = Vec4Make(0.5f, 0.5f, 0.5f, 1);
-    
-    [self.scene.root addChild:light];
+    [self.scene.root addChild:self.light];
     
     [self.scene.root addChild:[[RotatingQuad alloc] initWithView:view]];
     
@@ -102,9 +102,19 @@
     [self.sprite end];
 }
 
+- (void)handleUI:(UIManager *)ui reset:(BOOL)reset {
+    Vec4 color = self.light.color;
+    
+    [ui addRow:5];
+    [ui field:@"HelloWorld.color.field" gap:0 caption:@"Color" vec4Value:&color width:100 reset:reset];
+    
+    self.light.color = color;
+}
+
 - (void)tearDown {
     self.scene = nil;
     self.sprite = nil;
+    self.light = nil;
 }
 
 @end

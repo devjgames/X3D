@@ -7,6 +7,15 @@
 
 #import <X3D/X3D.h>
 
+@interface Test : XObject
+
+- (void)setup:(MTLView*)view;
+- (void)nextFrame:(MTLView*)view;
+- (void)handleUI:(UIManager*)ui reset:(BOOL)reset;
+- (void)tearDown;
+
+@end
+
 #import "HelloWorld.h"
 #import "Plot.h"
 #import "Map.h"

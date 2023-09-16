@@ -51,7 +51,6 @@ void Log(NSString* format, ...);
 @property (readonly) int mouseY;
 @property (readonly) int deltaX;
 @property (readonly) int deltaY;
-@property (readonly) UIManager* ui;
 
 - (id)initWithView:(NSView*)view device:(id<MTLDevice>)device;
 - (int)width;

@@ -66,11 +66,9 @@
     NSPoint p = event.locationInWindow;
     
     p.y = self.window.contentView.frame.size.height - p.y;
-    
-    if([self.superview isKindOfClass:[UIPanel class]]) {
-        p.x -= self.superview.frame.origin.x;
-        p.y -= self.superview.frame.origin.y;
-    }
+    p.x -= self.superview.frame.origin.x;
+    p.y -= self.superview.frame.origin.y;
+
     return p;
 }
 
