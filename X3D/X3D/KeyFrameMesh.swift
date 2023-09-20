@@ -92,7 +92,20 @@ public class KeyFrame {
     
     public var vertices=[KeyFrameVertex]()
     
+    private var _bounds=BoundingBox()
+    
     public init() {
+    }
+    
+    public var bounds:BoundingBox {
+        _bounds
+    }
+    
+    public func calcBounds() {
+        _bounds.clear()
+        for v in vertices {
+            _bounds = _bounds + v.position
+        }
     }
 }
 
@@ -115,8 +128,13 @@ public class KeyFrameMesh {
     private var _done:Bool=true
     private var _frame:Int=0
     private var _amount:Float=0
+    fileprivate var _bounds=BoundingBox()
 
     public init() {
+    }
+    
+    public var bounds:BoundingBox {
+        _bounds
     }
 
     public var done:Bool {
@@ -151,6 +169,8 @@ public class KeyFrameMesh {
         _frame = _start
         _amount = 0
         _done = _start == _end
+        
+        _bounds = frames.frames[_frame].bounds
     }
     
     public func setSequence(start:Int, end:Int, speed:Int, looping:Bool) {
@@ -191,6 +211,19 @@ public class KeyFrameMesh {
                 }
             }
         }
+        
+        let f1 = _frame
+        var f2 = _frame + 1
+        
+        if f1 == end {
+            f2 = _start
+        }
+        
+        let b1 = frames.frames[f1].bounds
+        let b2 = frames.frames[f2].bounds
+        
+        _bounds.lo = b1.lo + amount * (b2.lo - b1.lo)
+        _bounds.hi = b1.hi + amount * (b2.hi - b1.hi)
     }
     
     public func buffer(node:Node) {
@@ -222,6 +255,7 @@ public class KeyFrameMesh {
         let mesh = KeyFrameMesh()
         
         mesh.frames = frames
+        mesh._bounds = mesh.frames.frames.last!.bounds
         
         return mesh
     }
@@ -415,7 +449,10 @@ public class KeyFrameMeshLoader : AssetLoader {
                 mesh.frames.frames.last!.vertices[i * 3 + 1] = KeyFrameVertex(position: p2, textureCoordinate: u2, normal: n2)
                 mesh.frames.frames.last!.vertices[i * 3 + 2] = KeyFrameVertex(position: p3, textureCoordinate: u3, normal: n3)
             }
+            mesh.frames.frames.last!.calcBounds()
         }
+        mesh._bounds = mesh.frames.frames.first!.bounds
+        
         return mesh
     }
 }

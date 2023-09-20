@@ -15,6 +15,10 @@ public class Player : KeyFrameMeshAnimator {
     private var _onGround=false
     private let _radius:Float=16
     
+    public override var isSingleton: Bool {
+        true
+    }
+    
     public override func setup(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
         try super.setup(game: game, scene: scene, node: node, inDesign: inDesign)
         
@@ -30,12 +34,7 @@ public class Player : KeyFrameMeshAnimator {
         if let child = node.children.first, let mesh = mesh {
             if !inDesign {
                 
-                var minZ = Float.greatestFiniteMagnitude
-                
-                for v in mesh.frames.frames[0].vertices {
-                    minZ = min(v.position.z, minZ)
-                }
-                child.position.y = -_radius - minZ
+                child.position.y = -_radius - mesh.frames.frames[0].bounds.lo.z
                 
                 scene.root.traverse({ n in
                     if n.collidable {

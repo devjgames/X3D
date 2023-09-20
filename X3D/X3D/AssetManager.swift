@@ -54,6 +54,7 @@ public class AssetManager {
         register("obj", assetLoader: NodeLoader())
         register("wav", assetLoader: SoundLoader())
         register("m4a", assetLoader: SoundLoader())
+        register("mp3", assetLoader: SoundLoader())
     }
     
     public var game:Game {

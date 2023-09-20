@@ -37,6 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             Log.put(0, error)
         }
+        
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {

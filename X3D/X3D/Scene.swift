@@ -199,6 +199,10 @@ open class Animator : Identifiable {
     public required init() {
     }
     
+    open var isSingleton:Bool {
+        false
+    }
+    
     open func setup(game:Game, scene:Scene, node:Node, inDesign:Bool) throws {
     }
     
@@ -305,12 +309,22 @@ public class Node : Codable, Identifiable, Hashable, Equatable, CustomStringConv
     private var _depthStencilState:MTLDepthStencilState?
     private var _renderPipelineState:MTLRenderPipelineState?
     private var _vertexStack:VertexStack?
+    private var _bounds=BoundingBox()
+    private var _localBounds=BoundingBox()
     
     public init() {
     }
     
     public var description: String {
         name
+    }
+    
+    public var bounds:BoundingBox {
+        _bounds
+    }
+    
+    public var localBounds:BoundingBox {
+        _localBounds
     }
     
     public func newInstance() -> Node {
@@ -360,11 +374,20 @@ public class Node : Codable, Identifiable, Hashable, Equatable, CustomStringConv
         node.indices = indices
         node.faces = faces
         node.drawIndices = drawIndices
+        node._bounds = _bounds
         
         for child in children {
             node.children.append(child.newInstance())
         }
         return node
+    }
+    
+    public func calcBounds() {
+        _localBounds.clear()
+        for i in 0..<drawIndices {
+            _localBounds = _localBounds + vertices[indices[i]].position
+        }
+        _bounds = _localBounds
     }
     
     public func traverse(_ visit:(Node) -> Bool) {
@@ -381,6 +404,7 @@ public class Node : Codable, Identifiable, Hashable, Equatable, CustomStringConv
             model = parent.model * model
         }
         absolutePosition = Vec3.transform(model, Vec3())
+        _bounds = BoundingBox.transform(m: model, b: _localBounds)
         
         for child in children {
             child.calcModel(parent: self)
@@ -402,6 +426,7 @@ public class Node : Codable, Identifiable, Hashable, Equatable, CustomStringConv
                         self.name = name
                     } catch {
                         animatorName = ""
+                        animator = nil
                         Log.put(0, error)
                     }
                 }
@@ -421,6 +446,7 @@ public class Node : Codable, Identifiable, Hashable, Equatable, CustomStringConv
             do {
                 try animator.update(game: game, scene: scene, node: self, inDesign: inDesign)
             } catch {
+                self.animator = nil
                 Log.put(0, error)
             }
         }
@@ -434,6 +460,7 @@ public class Node : Codable, Identifiable, Hashable, Equatable, CustomStringConv
             do {
                 try animator.handleUI(game: game, scene: scene, node: self, ui: ui, reset: reset)
             } catch {
+                self.animator = nil
                 Log.put(0, error)
             }
         }

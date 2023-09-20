@@ -9,6 +9,10 @@ import X3D
 
 class Target : Animator {
     
+    override var isSingleton: Bool {
+        true
+    }
+    
     override func setup(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
         if inDesign {
             let model = try game.assets.load("ui.obj") as! Node

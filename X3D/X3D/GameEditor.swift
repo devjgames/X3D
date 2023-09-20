@@ -131,14 +131,29 @@ public class GameEditor : NSObject, MTKViewDelegate {
                     }
                 }
                 if _uiN.button(key: "GameEditor.add.node.button", gap: 5, caption: "+Node", selected: false) {
-                    _selection = Node()
-                    _selection!.setAnimator(game: _game, scene: _scene, inDesign: true, name: _animators[_animator] as! String)
-                    _scene.root.children.append(_selection!)
-                    _nodes.removeAll()
-                    _nodes.append(contentsOf: _scene.root.children)
-                    _selNode = _nodes.count - 1
-                    _editorType = EditorType.node
-                    _resetEditor = true
+                    let animatorName = _animators[_animator] as! String
+                    var add=true
+                    
+                    _scene.root.traverse({ n in
+                        if n.animatorName == animatorName {
+                            if let animator = n.animator {
+                                if animator.isSingleton {
+                                    add = false
+                                }
+                            }
+                        }
+                        return true
+                    })
+                    if add {
+                        _selection = Node()
+                        _selection!.setAnimator(game: _game, scene: _scene, inDesign: true, name: _animators[_animator] as! String)
+                        _scene.root.children.append(_selection!)
+                        _nodes.removeAll()
+                        _nodes.append(contentsOf: _scene.root.children)
+                        _selNode = _nodes.count - 1
+                        _editorType = EditorType.node
+                        _resetEditor = true
+                    }
                 }
                 if let clipboard = _clipboard {
                     if _uiN.button(key: "GameEditor.paste.button", gap: 5, caption: "Paste", selected: false) {

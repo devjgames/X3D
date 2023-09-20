@@ -8,6 +8,10 @@
 import Foundation
 
 open class LightMapper : Animator {
+    
+    public override var isSingleton: Bool {
+        true
+    }
 
     open override func setup(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
         if node.integers["_WIDTH"] == nil {
@@ -68,6 +72,14 @@ open class LightMapper : Animator {
                 
                 return true
             })
+            
+            let name = NSString(string: NSString(string: scene.file).lastPathComponent).deletingPathExtension
+            let path = "\(name).png"
+            let url = game.assets.baseURL.appendingPathComponent(path)
+            
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
         }
         ui.addRow(gap: 5)
         if ui.button(key: "LightMapper.map.button", gap: 0, caption: "Map", selected: false) {
@@ -135,8 +147,12 @@ open class LightMapper : Animator {
                     var v2 = mesh.vertices[f[1]]
                     var v3 = mesh.vertices[f[2]]
                     var v4 = mesh.vertices[f[3]]
-                    let e1 = v2.position - v1.position
-                    let e2 = v3.position - v2.position
+                    let p1 = Vec3.transform(mesh.model, v1.position)
+                    let p2 = Vec3.transform(mesh.model, v2.position)
+                    let p3 = Vec3.transform(mesh.model, v3.position)
+                    let p4 = Vec3.transform(mesh.model, v4.position)
+                    let e1 = p2 - p1
+                    let e2 = p3 - p2
                     var tw:Int = Int(e1.length / 16)
                     var th:Int = Int(e2.length / 16)
                     let error = "failed to allocate light map tile"
@@ -175,6 +191,8 @@ open class LightMapper : Animator {
                     mesh.vertices[f[2]] = v3
                     mesh.vertices[f[3]] = v4
                     
+                    let n = Vec3.normalize(Vec3.transformNormal(Mat4.transpose(Mat4.invert(mesh.model)), v1.normal))
+                    
                     if rb {
                         
                         Log.put(1, "mapping tile \(x), \(y) : \(tw) x \(th) ...")
@@ -183,10 +201,9 @@ open class LightMapper : Animator {
                             for j in y..<y+th {
                                 let tx = (Float(i - x) + 0.5) / Float(tw)
                                 let ty = (Float(j - y) + 0.5) / Float(th)
-                                let a = v1.position + tx * (v2.position - v1.position)
-                                let b = v4.position + tx * (v3.position - v4.position)
+                                let a = p1 + tx * (p2 - p1)
+                                let b = p4 + tx * (p3 - p4)
                                 let p = a + ty * (b - a)
-                                let n = v1.normal
                                 var c = mesh.ambientColor
                                 
                                 for light in lights {

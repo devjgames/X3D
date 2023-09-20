@@ -1,0 +1,83 @@
+2/27/99
+
+================================================================
+
+Model Name              : Yoshi
+
+installation directory  : quake2/baseq2/players/yoshi
+
+Author                  : Chris Shelton
+
+Email Address           : sheltonc@home.com
+
+Website Address         : n/a
+
+Model description       : 
+
+	It's the little green dinosaur from all those great Super Mario,
+	and Yoshi games published by Nintendo!
+
+	The names Super Mario and Yoshi are registered trademarks of 
+	Nintendo Corp. and all of their	affiliates.  Names, images, likenesses, and
+	sounds included with this model are the sole property of Nintendo, and 
+	I claim no ownership to any of them.  
+
+Other info              : 
+	Well I started working on Yoshi months ago, mostly finished it, and
+	never released it, so I loaded it up and made sure it works in DM, and
+	it seems to work fine.  Nintendo will be happy to know that I made Yoshi
+	as anti-gore as possible so he doesn't go to pieces during any of my death 
+	animations.  I had a lot of fun with the taunts and stuff so check them out.
+	The skins suck, as does the skin mapping.  I'm much better at skin mapping now,
+	but at the time I made this I did what I could.  Plus I didn't have a REAL 
+	skin artist to do the skin, so I had to whip it out myself!  However, he's 
+	never shaded in any of the Nintendo games he's in, so he doesn't look too 
+	bad.
+
+Additional Credits to   : 
+	* Idsoftware 
+	* Q2modeler
+	* Nintendo
+
+
+Thanks to               :
+	All the people that make freeware 3dstudio plugins that would have made
+	Yoshi possible in a week instead of several weeks.  Keep up the good work!
+	
+
+================================================================
+
+* Play Information *
+
+New Sounds              : YES
+
+CTF Skins               : YES
+
+VWEP Support            : NO, and not gonna happen since he shoots out of his mouth.
+
+
+* Construction *
+
+Poly Count              : 670 tris.md2 / 1 weapon.md2
+
+Vert Count              : 408 tris.md2 / 3 weapon.md2
+
+Skin Count              : 8 DM, 2 CTF
+
+Base		        : None. 
+
+Editor used             : 
+		Modeling - 3dsMax 2.5
+		Animation- 3dsMax 2.5 and BonesPro
+		Skining  - Q2modeler
+		Painting - Microsoft Paint :)
+		
+Known Bugs              : He blinks through his pupils (I'm too lazy to fix it)
+
+Build/Animation time    : damn who knows.. it's been a long time.
+
+* Copyright / Permissions *
+QUAKE(R) and QUAKE II(R) are registered trademarks of id Software, Inc.
+Feel free to edit my model as you see fit, just be sure to mention me
+in the readme file. This model is not to be distributed as part of any
+commercial product.

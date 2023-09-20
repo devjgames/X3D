@@ -95,6 +95,7 @@ public class NodeLoader : AssetLoader {
         }
         for node in root.children {
             node.drawIndices = node.indices.count
+            node.calcBounds()
         }
         return root;
     }

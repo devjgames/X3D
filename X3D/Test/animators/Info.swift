@@ -9,6 +9,10 @@ import X3D
 
 class Info : Animator {
     
+    override var isSingleton: Bool {
+        true
+    }
+    
     override func setup(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
         node.isSprite = true
         node.depthTestEnabled = false
