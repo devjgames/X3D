@@ -198,6 +198,7 @@ open class ModelAnimator : Animator {
             n.lightMapEnabled = node.lightMapEnabled
             n.collidable = node.collidable
             n.dynamic = node.dynamic
+            n.texture2Linear = node.texture2Linear
             
             return true
         })

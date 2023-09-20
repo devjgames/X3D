@@ -23,11 +23,11 @@ class Light : Animator {
     }
     
     override func handleUI(game: Game, scene: Scene, node: Node, ui: UI, reset: Bool) throws {
-        if let color = ui.field(key: "Light.color.field", gap: 0, width: 125, caption: "Color", vec4Value: node.lightColor, reset: reset) {
+        if let color = ui.field(key: "Light.color.field", gap: 0, width: 150, caption: "Color", vec4Value: node.lightColor, reset: reset) {
             node.lightColor = color
         }
         ui.addRow(gap: 5)
-        if let range = ui.field(key: "Light.range.field", gap: 0, width: 125, caption: "Range", realValue: node.lightRange, reset: reset) {
+        if let range = ui.field(key: "Light.range.field", gap: 0, width: 150, caption: "Range", realValue: node.lightRange, reset: reset) {
             node.lightRange = range
         }
     }

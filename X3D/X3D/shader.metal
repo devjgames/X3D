@@ -105,7 +105,7 @@ fragment float4 fragmentShader(FragmentInput input [[stage_in]],
         if(data.texture2Linear != 0) {
             color *= float4(texture2.sample(tex2Linear, input.textureCoordinate2));
         } else {
-            color *= float4(texture.sample(tex2Nearest, input.textureCoordinate2));
+            color *= float4(texture2.sample(tex2Nearest, input.textureCoordinate2));
         }
     }
     return color;

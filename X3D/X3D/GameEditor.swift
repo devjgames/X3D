@@ -12,7 +12,6 @@ fileprivate enum EditorType {
     case node
     case addScene
     case loadScene
-    case map
 }
 
 fileprivate enum EditorMode : String, CaseIterable {
@@ -153,10 +152,6 @@ public class GameEditor : NSObject, MTKViewDelegate {
                         _resetEditor = true
                     }
                 }
-                if _uiN.button(key: "GameEditor.map.scene.button", gap: 5, caption: "Map", selected: _editorType == EditorType.map) {
-                    _editorType = EditorType.map
-                    _resetEditor = true
-                }
                 for mode in EditorMode.allCases {
                     if _uiN.button(key: "Game.mode.\(mode).scene.button", gap: 5, caption: mode.rawValue, selected: _mode == mode) {
                         _mode = mode
@@ -239,34 +234,6 @@ public class GameEditor : NSObject, MTKViewDelegate {
                     }
                 }
                 _selScene = -2
-            } else if _editorType == EditorType.map {
-                if let _ = _uiE.field(key: "GameEditor.map.width.button", gap: 0, width: 75, caption: "Width", intValue: 128, reset: _resetEditor) {
-                    // TODO
-                }
-                _uiE.addRow(gap: 5)
-                if let _ = _uiE.field(key: "GameEditor.map.height.button", gap: 0, width: 75, caption: "Height", intValue: 128, reset: _resetEditor) {
-                    // TODO
-                }
-                _uiE.addRow(gap: 5)
-                if let _ = _uiE.field(key: "GameEditor.map.samples.button", gap: 0, width: 75, caption: "Samples", intValue: 32, reset: _resetEditor) {
-                    // TODO
-                }
-                _uiE.addRow(gap: 5)
-                if let _ = _uiE.field(key: "GameEditor.map.sample.radius.button", gap: 0, width: 75, caption: "Radius", realValue: 32, reset: _resetEditor) {
-                    // TODO
-                }
-                _uiE.addRow(gap: 5)
-                if _uiE.button(key: "GameEditor.map.linear.button", gap: 0, caption: "Linear", selected: false) {
-                    // TODO
-                }
-                if _uiE.button(key: "GameEditor.map.clear.button", gap: 5, caption: "Clear", selected: false) {
-                    // TODO
-                }
-                _uiE.addRow(gap: 5)
-                if _uiE.button(key: "GameEditor.map.button", gap: 0, caption: "Map", selected: false) {
-                    // TODO
-                }
-                _resetEditor = false
             }
             _uiE.end()
             

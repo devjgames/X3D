@@ -30,7 +30,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                                             "KFMesh",
                                             "Info",
                                             "Player",
-                                            "Drip"
+                                            "Drip",
+                                            "LMap"
                                         ]
             )
         } catch {

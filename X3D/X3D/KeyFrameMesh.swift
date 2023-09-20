@@ -295,7 +295,7 @@ open class KeyFrameMeshAnimator : Animator {
             let speed = mesh.speed
             
             ui.addRow(gap: 5)
-            if let result = ui.field(key: "KeyFrameMeshAnimator.sequence.field", gap: 0, width: 125, caption: "Sequence", text: "\(start) \(end) \(speed)", reset: resetFields) {
+            if let result = ui.field(key: "KeyFrameMeshAnimator.sequence.field", gap: 0, width: 150, caption: "Sequence", text: "\(start) \(end) \(speed)", reset: resetFields) {
                 let tokens = result.components(separatedBy: CharacterSet.whitespaces)
                 
                 if tokens.count >= 3 {
@@ -313,12 +313,12 @@ open class KeyFrameMeshAnimator : Animator {
             }
             
             ui.addRow(gap: 5)
-            if let result = ui.field(key: "KeyFrameMeshAnimator.sequence.ambient.field", gap: 0, width: 125, caption: "Ambient", vec4Value: child.ambientColor, reset: resetFields) {
+            if let result = ui.field(key: "KeyFrameMeshAnimator.sequence.ambient.field", gap: 0, width: 150, caption: "Ambient", vec4Value: child.ambientColor, reset: resetFields) {
                 child.ambientColor = result
             }
             
             ui.addRow(gap: 5)
-            if let result = ui.field(key: "KeyFrameMeshAnimator.sequence.diffuse.field", gap: 0, width: 125, caption: "Diffuse", vec4Value: child.diffuseColor, reset: resetFields) {
+            if let result = ui.field(key: "KeyFrameMeshAnimator.sequence.diffuse.field", gap: 0, width: 150, caption: "Diffuse", vec4Value: child.diffuseColor, reset: resetFields) {
                 child.diffuseColor = result
             }
         }

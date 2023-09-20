@@ -165,14 +165,14 @@ fileprivate class VertexStack {
     public var vertices=[ShaderVertex]()
     public var vertexBuffer:MTLBuffer?
     
-    private var game:Game?
+    private var _game:Game?
     
     init(_ game:Game, maxStack:Int) {
         Log.put(1, "Creating vertex stack \(maxStack) ...")
         
         vertexBuffer = game.device!.makeBuffer(length: maxStack * MemoryLayout<ShaderVertex>.stride, options: .storageModeManaged)
         
-        self.game = game
+        _game = game
     }
     
     func buffer() {
@@ -180,7 +180,7 @@ fileprivate class VertexStack {
             memmove(vertexBuffer!.contents(), vertices, vertices.count * MemoryLayout<ShaderVertex>.stride)
             vertexBuffer!.didModifyRange(0..<vertices.count * MemoryLayout<ShaderVertex>.stride)
             
-            let commandBuffer = game!.commandQueue.makeCommandBuffer()!
+            let commandBuffer = _game!.commandQueue.makeCommandBuffer()!
             let encoder = commandBuffer.makeBlitCommandEncoder()!
             
             encoder.synchronize(resource: vertexBuffer!)
@@ -669,10 +669,15 @@ public class Scene : Codable {
     public var camera=Camera()
     public var backgroundColor=Vec4(0.2, 0.2, 0.2, 1)
     
-    private var lights=[Node]()
-    private var encodables=[Node]()
+    private var _lights=[Node]()
+    private var _encodables=[Node]()
+    private var _file=""
     
     public init() {
+    }
+    
+    public var file:String {
+        _file
     }
     
     public func buffer(game:Game, aspectRatio:Float) {
@@ -687,17 +692,17 @@ public class Scene : Codable {
             if node.visible {
                 if node.drawIndices != 0 {
                     node.buffer(game: game)
-                    encodables.append(node)
+                    _encodables.append(node)
                 }
                 if node.isLight {
-                    lights.append(node)
+                    _lights.append(node)
                 }
                 return true
             }
             return false
         }
         
-        encodables.sort { a, b in
+        _encodables.sort { a, b in
             if a.zOrder == b.zOrder {
                 let dA = (a.absolutePosition - camera.eye).length
                 let dB = (b.absolutePosition - camera.eye).length
@@ -707,7 +712,7 @@ public class Scene : Codable {
                 return a.zOrder < b.zOrder
             }
         }
-        lights.sort { a, b in
+        _lights.sort { a, b in
             let dA = (a.absolutePosition - camera.eye).length
             let dB = (b.absolutePosition - camera.eye).length
             
@@ -718,14 +723,14 @@ public class Scene : Codable {
     public func encode(game:Game, width:Float, height:Float, encoder:MTLRenderCommandEncoder) throws {
         let orthoProjection = Mat4.ortho(0, width, height, 0, -1, 1)
         
-        for encodable in encodables {
-            try encodable.encode(game: game, orthoProjection: orthoProjection, camera: camera, lights: lights, encoder: encoder)
+        for encodable in _encodables {
+            try encodable.encode(game: game, orthoProjection: orthoProjection, camera: camera, lights: _lights, encoder: encoder)
         }
     }
     
     public func clear() {
-        lights.removeAll(keepingCapacity: true)
-        encodables.removeAll(keepingCapacity: true)
+        _lights.removeAll(keepingCapacity: true)
+        _encodables.removeAll(keepingCapacity: true)
     }
     
     public func encode(game:Game, inDesign:Bool) throws {
@@ -758,6 +763,7 @@ public class Scene : Codable {
     public static func load(game:Game, inDesign:Bool, path:String) throws -> Scene {
         let scene = try JSONDecoder().decode(Scene.self, from: try Data(contentsOf: game.assets.baseURL.appendingPathComponent(path)))
         
+        scene._file = path
         scene.root.setup(game: game, scene: scene, inDesign: inDesign)
         
         return scene

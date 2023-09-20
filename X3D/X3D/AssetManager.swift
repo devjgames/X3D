@@ -75,6 +75,12 @@ public class AssetManager {
         return assets[path]
     }
     
+    public func unload(_ path:String) {
+        if assets[path] != nil {
+            assets.removeValue(forKey: path)
+        }
+    }
+    
     public func clear() {
         assets.removeAll()
     }
