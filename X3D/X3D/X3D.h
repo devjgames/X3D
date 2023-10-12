@@ -9,6 +9,7 @@
 #import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
+#import <JavaScriptCore/JavaScriptCore.h>
 
 //! Project version number for X3D.
 FOUNDATION_EXPORT double X3DVersionNumber;

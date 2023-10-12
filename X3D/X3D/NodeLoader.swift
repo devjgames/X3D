@@ -103,19 +103,31 @@ public class NodeLoader : AssetLoader {
 
 open class ModelAnimator : Animator {
     
-    private var _models=[Any]()
+    private static var _models=[Any]()
+    
+    public static func populateAssets(url:URL) throws {
+        let items = try FileManager.default.contentsOfDirectory(atPath: url.path)
+        
+        for item in items {
+            if NSString(string:item).pathExtension == "obj" {
+                _models.append(item)
+            }
+        }
+    }
+    
+    public var scripted=false
     
     open override func setup(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
         try load(game: game, node: node)
         
-        if inDesign {
-            let items = try FileManager.default.contentsOfDirectory(atPath: game.assets.baseURL.path)
-            
-            for item in items {
-                if NSString(string:item).pathExtension == "obj" {
-                    _models.append(item)
-                }
-            }
+        if scripted {
+            try super.setup(game: game, scene: scene, node: node, inDesign: inDesign)
+        }
+    }
+    
+    open override func update(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
+        if scripted {
+            try super.update(game: game, scene: scene, node: node, inDesign: inDesign)
         }
     }
     
@@ -124,19 +136,19 @@ open class ModelAnimator : Animator {
         var resetFields = reset
         
         if reset {
-            let n = _models.count
+            let n = ModelAnimator._models.count
             
             selModel = -1
             
             for i in 0..<n {
-                if _models[i] as? String == node.strings["_PATH"] {
+                if ModelAnimator._models[i] as? String == node.strings["_PATH"] {
                     selModel = i
                     break
                 }
             }
         }
-        if let result = ui.list(key: "ModelAnimator.list", gap: 0, width: 225, height: 100, items: &_models, selected: selModel) {
-            node.strings["_PATH"] = _models[result] as? String
+        if let result = ui.list(key: "ModelAnimator.list", gap: 0, width: 225, height: 100, items: &ModelAnimator._models, selected: selModel) {
+            node.strings["_PATH"] = ModelAnimator._models[result] as? String
             
             try load(game: game, node: node)
             

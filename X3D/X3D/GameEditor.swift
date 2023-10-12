@@ -52,10 +52,12 @@ public class GameEditor : NSObject, MTKViewDelegate {
     private var _addScenePath:String?
     private var _down=false
     private var _dark=true
+    private var _setup:(JSGame) -> Void
     
-    public init(window: NSWindow, assetRoot:URL, animatorBase:String, animators:[String]) throws {
+    public init(window: NSWindow, assetRoot:URL, animatorBase:String, animators:[String], setup: @escaping (JSGame) -> Void) throws {
         _game = try Game(frame: window.contentView!.frame, animatorBase: animatorBase)
         _game.assets.baseURL = assetRoot
+        _setup = setup
         
         window.backgroundColor = NSColor.darkGray
         window.contentView!.addSubview(_game)
@@ -96,6 +98,7 @@ public class GameEditor : NSObject, MTKViewDelegate {
             
             if _game.isKeyDown(53) {
                 _playing = false
+                _game.game = nil
 
                 _scene = Scene()
             }
@@ -124,6 +127,12 @@ public class GameEditor : NSObject, MTKViewDelegate {
                     
                     do {
                         _game.assets.clear()
+                        do {
+                            _game.game = try JSGame(url: _game.assets.baseURL.appendingPathComponent("game.js"), setup: _setup)
+                        } catch {
+                            _game.game = nil
+                            Log.put(0, error)
+                        }
                         _scene = try Scene.load(game: _game, inDesign: false, path: name)
                         _game.resetTimer()
                     } catch {

@@ -15,6 +15,12 @@ public class Player : KeyFrameMeshAnimator {
     private var _onGround=false
     private let _radius:Float=16
     
+    public required init() {
+        super.init()
+        
+        scripted = true
+    }
+    
     public override var isSingleton: Bool {
         true
     }

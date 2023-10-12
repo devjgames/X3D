@@ -204,9 +204,17 @@ open class Animator : Identifiable {
     }
     
     open func setup(game:Game, scene:Scene, node:Node, inDesign:Bool) throws {
+        if let jsGame = game.game, !inDesign {
+            jsGame.activeNode = node
+            jsGame.setup(game: game, scene: scene, node: node)
+        }
     }
     
     open func update(game:Game, scene:Scene, node:Node, inDesign:Bool) throws {
+        if let jsGame = game.game, !inDesign {
+            jsGame.activeNode = node
+            jsGame.update(game: game, scene: scene, node: node)
+        }
     }
     
     open func handleUI(game:Game, scene:Scene, node:Node, ui:UI, reset:Bool) throws {
@@ -791,6 +799,17 @@ public class Scene : Codable {
         let scene = try JSONDecoder().decode(Scene.self, from: try Data(contentsOf: game.assets.baseURL.appendingPathComponent(path)))
         
         scene._file = path
+        
+        if let jsGame = game.game, !inDesign {
+            scene.root.traverse({ node in
+                if node.animatorName == "Player" {
+                    jsGame.player = node
+                    return false
+                }
+                return true
+            })
+        }
+        
         scene.root.setup(game: game, scene: scene, inDesign: inDesign)
         
         return scene

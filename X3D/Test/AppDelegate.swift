@@ -22,6 +22,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             url = url.appendingPathComponent("XCode/X3DTest/X3DTest/assets")
             
+            try KeyFrameMeshAnimator.populateAssets(url: url)
+            try ModelAnimator.populateAssets(url: url)
+            
             gameEditor = try GameEditor(window: window, assetRoot: url, animatorBase: "X3DTest",
                                         animators: [
                                             "Target",
@@ -33,7 +36,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                                             "Drip",
                                             "LMap"
                                         ]
-            )
+            ) { jsGame in
+                jsGame.addBasicFuncs()
+            }
         } catch {
             Log.put(0, error)
         }

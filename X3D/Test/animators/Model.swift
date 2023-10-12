@@ -9,4 +9,9 @@ import X3D
 
 class Model : ModelAnimator {
     
+    required init() {
+        super.init()
+        
+        scripted = true
+    }
 }

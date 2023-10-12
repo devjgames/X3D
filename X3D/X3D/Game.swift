@@ -12,6 +12,7 @@ import MetalKit
 public class Game : MTKView {
     
     public let animatorBase:String
+    public var game:JSGame?
     
     private var _commandQueue:MTLCommandQueue?
     private var _library:MTLLibrary?

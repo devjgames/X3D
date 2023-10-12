@@ -8,4 +8,9 @@
 import X3D
 
 class KFMesh : KeyFrameMeshAnimator {
+    
+    required init() {
+        super.init()
+        scripted=true
+    }
 }

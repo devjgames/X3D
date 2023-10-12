@@ -263,31 +263,43 @@ public class KeyFrameMesh {
 
 open class KeyFrameMeshAnimator : Animator {
     
+    private static var _meshNames=[Any]()
+    
+    public static func populateAssets(url:URL) throws {
+        let items = try FileManager.default.contentsOfDirectory(atPath: url.path)
+        
+        _meshNames.removeAll()
+        for item in items {
+            if NSString(string: item).pathExtension == "md2" {
+                _meshNames.append(item)
+            }
+        }
+    }
+    
     private var _mesh:KeyFrameMesh?
-    private var _meshNames=[Any]()
+
+    public var scripted=false
     
     public var mesh:KeyFrameMesh? {
         _mesh
     }
     
     open override func setup(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
-        if inDesign {
-            let items = try FileManager.default.contentsOfDirectory(atPath: game.assets.baseURL.path)
-            
-            _meshNames.removeAll()
-            for item in items {
-                if NSString(string: item).pathExtension == "md2" {
-                    _meshNames.append(item)
-                }
-            }
-        }
         try loadMesh(game: game, node: node)
+        
+        if scripted {
+            try super.setup(game: game, scene: scene, node: node, inDesign: inDesign)
+        }
     }
     
     open override func update(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
         if let mesh = _mesh, let child = node.children.first {
             mesh.update(game: game)
             mesh.buffer(node: child)
+        }
+        
+        if scripted {
+            try super.update(game: game, scene: scene, node: node, inDesign: inDesign)
         }
     }
     
@@ -298,10 +310,10 @@ open class KeyFrameMeshAnimator : Animator {
         if reset {
             sel = -1
             if let path = node.strings["_PATH"] {
-                let n = _meshNames.count
+                let n = KeyFrameMeshAnimator._meshNames.count
                 
                 for i in 0..<n {
-                    let name = _meshNames[i]
+                    let name = KeyFrameMeshAnimator._meshNames[i]
                     
                     if name as? String == path {
                         sel = i
@@ -310,8 +322,8 @@ open class KeyFrameMeshAnimator : Animator {
                 }
             }
         }
-        if let result = ui.list(key: "KeyFrameMeshAnimator.mesh.list", gap: 0, width: 225, height: 100, items: &_meshNames, selected: sel) {
-            let name = _meshNames[result] as? String
+        if let result = ui.list(key: "KeyFrameMeshAnimator.mesh.list", gap: 0, width: 225, height: 100, items: &KeyFrameMeshAnimator._meshNames, selected: sel) {
+            let name = KeyFrameMeshAnimator._meshNames[result] as? String
             
             if name != node.strings["_PATH"] {
                 

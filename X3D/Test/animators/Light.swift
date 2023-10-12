@@ -20,6 +20,8 @@ class Light : Animator {
             node.children = []
         }
         node.isLight = true
+        
+        try super.setup(game: game, scene: scene, node: node, inDesign: inDesign)
     }
     
     override func handleUI(game: Game, scene: Scene, node: Node, ui: UI, reset: Bool) throws {

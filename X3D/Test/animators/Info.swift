@@ -25,6 +25,8 @@ class Info : Animator {
         node.drawIndices = 0
         node.zOrder = 100000
         node.children = []
+        
+        try super.setup(game: game, scene: scene, node: node, inDesign: inDesign)
     }
     
     override func update(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {

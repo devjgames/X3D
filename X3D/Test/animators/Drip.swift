@@ -35,6 +35,7 @@ class Drip : Animator {
                 return true
             })
         }
+        try super.setup(game: game, scene: scene, node: node, inDesign: inDesign)
     }
     
     override func update(game: Game, scene: Scene, node: Node, inDesign: Bool) throws {
@@ -42,5 +43,7 @@ class Drip : Animator {
             return
         }
         _sound!.player.volume = 0.2 - min((_player!.position - node.position).length / 1000, 0.2)
+        
+        try super.update(game: game, scene: scene, node: node, inDesign: inDesign)
     }
 }
